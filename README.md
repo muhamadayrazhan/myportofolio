@@ -6,7 +6,7 @@ Class : PBP E
 
 ### Tugas 1
 
-1. Saya menggunakan elemen semantik HTML5 yaitu <section> dalam mebuat section experience untuk membantu saya memperjelas bahwa yang ada di dalam <section> itu adalah konten yang berdiri sendiri yaitu section "experience".
+1. Saya menggunakan elemen semantik HTML5 yaitu "section" dalam mebuat section experience untuk membantu saya memperjelas bahwa yang ada di dalam "section" itu adalah konten yang berdiri sendiri yaitu section "experience".
 
 2. Tantangan yang saya temukan adalah terlalu banyak perangkat yang ukuran layarnya sangat beragam. Untuk menyelesaikan masalah ini, saya coba buka DevTools saat saya runservernya di lokal, lalu perhatikan dimensinya, tarik dari ukuran yang paling kecil ke besar pelan-pelan. Dari hasil pengamatan tersebut kita bisa lihat di titik apa design kita mulai berantakan dan barulah kita perbaiki design yang rusak.
 
