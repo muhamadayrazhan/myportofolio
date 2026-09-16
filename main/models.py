@@ -43,6 +43,8 @@ class Education(models.Model):
     description = models.TextField(blank=True)
     start_year = models.PositiveIntegerField()
     end_year = models.PositiveIntegerField(blank=True, null=True)
+    institution_url = models.URLField(blank=True)
+    institution_image_url = models.URLField(blank=True, max_length=500)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
