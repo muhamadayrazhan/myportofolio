@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block meta %}
+    <title>Project - {{ name }}</title>
+{% endblock meta %}
+{% block content %}
+    <main>
+        <section class="page-section" id="project">
+            <div class="container">
+                <p class="section-kicker">Karya yang pernah saya bangun</p>
+                <div class="section-header">
+                    <h1>Project</h1>
+                    <a href="{% url 'main:create_project' %}" class="button add-button">
+                        <span aria-hidden="true">+</span>
+                        Tambah Proyek
+                    </a>
+                </div>
+
+                <form method="get" action="{% url 'main:show_project' %}" class="search-form">
+                    <input type="search"
+                           name="title"
+                           value="{{ title_query }}"
+                           placeholder="Cari berdasarkan nama proyek"
+                           class="search-form__input"
+                           aria-label="Cari berdasarkan nama proyek">
+                    <button type="submit" class="button">Cari</button>
+                </form>
+
+                <div class="card-grid card-grid--two">
+                    {% for project in project_list %}
+                        <article class="card">
+                            {% if project.project_image_url %}
+                                <img src="{{ project.project_image_url }}"
+                                     alt="Gambar {{ project.title }}"
+                                     class="card-image">
+                            {% endif %}
+                            <div class="card-tags">
+                                <span class="card-tag">{{ project.get_category_display }}</span>
+                                {% if project.is_featured %}
+                                    <span class="badge-featured">Featured</span>
+                                {% endif %}
+                            </div>
+                            <h2>{{ project.title }}</h2>
+                            <p class="card-description">{{ project.description }}</p>
+                            <ul class="tech-stack">
+                                {% for tech in project.tech_stack_list %}
+                                    <li class="tech-stack__item">{{ tech }}</li>
+                                {% endfor %}
+                            </ul>
+                            <div class="card-footer">
+                                <p class="card-meta">{{ project.year }}</p>
+                                <div class="card-actions">
+                                    {% if project.project_url %}
+                                        <a href="{{ project.project_url }}" class="button">Lihat Proyek</a>
+                                    {% endif %}
+                                    <a href="{% url 'main:edit_project' project.id %}"
+                                       class="button button-secondary">Edit</a>
+                                    {% url 'main:delete_project' project.id as delete_url %}
+                                    {% include "components/delete_modal.html" with modal_id=project.id entity_name="Proyek" item_label=project.title delete_url=delete_url %}
+                                </div>
+                            </div>
+                        </article>
+                    {% empty %}
+                        {% if title_query %}
+                            <p class="empty-state">Tidak ada proyek dengan nama tersebut.</p>
+                        {% else %}
+                            <p class="empty-state">Belum ada proyek yang ditambahkan.</p>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    </main>
+{% endblock content %}

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block meta %}
+    <title>{{ page_title }} - {{ name }}</title>
+{% endblock meta %}
+{% block content %}
+    <main>
+        <section class="page-section">
+            <div class="container">
+                <p class="section-kicker">{{ kicker }}</p>
+                <h1>{{ page_title }}</h1>
+                <form method="post" action="" class="entity-form">
+                    {% csrf_token %}
+                    {% include "components/form_fields.html" %}
+                    <div class="form-actions">
+                        <button type="submit" class="button">{{ submit_label }}</button>
+                        <a href="{{ cancel_url }}" class="button button-secondary">Batal</a>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </main>
+{% endblock content %}

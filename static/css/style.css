@@ -248,7 +248,7 @@ h1, .brand {
     }
 }
 
-.experience-section {
+.page-section {
     padding: 4rem 0;
     border-top: 1px solid var(--line);
 }
@@ -261,42 +261,42 @@ h1, .brand {
     text-transform: uppercase;
 }
 
-.experience-section h1 {
+.page-section h1 {
     margin: 0.4rem 0 1.5rem;
     font-size: 2rem;
 }
 
-.experience-grid {
+.card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 1rem;
 }
 
-.experience-card {
+.card {
     padding: 1.25rem;
     background-color: #fff;
     border: 1px solid var(--line);
     border-radius: var(--radius);
 }
 
-.experience-category {
+.card-tag {
     color: var(--accent-dark);
     font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
 }
 
-.experience-card h2 {
+.card h2 {
     margin: 0.5rem 0;
     font-size: 1.25rem;
 }
 
-.experience-description,
+.card-description,
 .empty-state {
     color: var(--text-muted);
 }
 
-.experience-status {
+.card-meta {
     margin-top: 1rem;
     font-size: 0.85rem;
     font-weight: 600;
@@ -309,7 +309,7 @@ h1, .brand {
 }
 
 /* form */
-.education-form {
+.entity-form {
     width: 100%;
     max-width: 100%;
     margin-top: 1.5rem;
@@ -375,7 +375,7 @@ h1, .brand {
 }
 
 /* education */
-.education-header {
+.section-header {
     width: 100%;
     display: flex;
     justify-content: space-between;
@@ -384,20 +384,20 @@ h1, .brand {
     margin-bottom: 1.5rem;
 }
 
-.education-header h1 {
+.section-header h1 {
     margin-bottom: 0;
 }
 
-.education-grid {
+.card-grid--two {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.education-grid .experience-card {
+.card-grid--two .card {
     display: flex;
     flex-direction: column;
 }
 
-.education-image {
+.card-image {
     display: block;
     width: 100%;
     height: auto;
@@ -406,24 +406,24 @@ h1, .brand {
     border-radius: var(--radius);
 }
 
-.education-add-button {
+.add-button {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
 }
 
-.education-add-button span {
+.add-button span {
     font-size: 1.25rem;
     line-height: 1;
 }
 
-.education-search {
+.search-form {
     display: flex;
     gap: 0.75rem;
     margin-bottom: 1.5rem;
 }
 
-.education-search__input {
+.search-form__input {
     width: 100%;
     min-width: 0;
     padding: 0.7rem;
@@ -434,18 +434,18 @@ h1, .brand {
     font: inherit;
 }
 
-.education-search__input:focus {
+.search-form__input:focus {
     outline: 2px solid var(--accent);
     border-color: var(--accent);
 }
 
-.education-card-actions {
+.card-footer {
     display: flex;
     flex-direction: column;
     margin-top: auto;
 }
 
-.education-actions {
+.card-actions {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -453,17 +453,17 @@ h1, .brand {
     margin-top: 1rem;
 }
 
-.education-actions .button {
+.card-actions .button {
     font-size: 0.85rem;
     font-weight: 600;
 }
 
-.education-actions .experience-status {
+.card-actions .card-meta {
     margin-top: 0;
 }
 
 /* delete modal */
-.education-delete-modal {
+.delete-modal {
     display: none;
     position: fixed;
     inset: 0;
@@ -480,11 +480,11 @@ h1, .brand {
     justify-content: center;
 }
 
-.education-delete-modal:popover-open {
+.delete-modal:popover-open {
     display: flex;
 }
 
-.education-delete-modal__backdrop {
+.delete-modal__backdrop {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -495,7 +495,7 @@ h1, .brand {
     cursor: default;
 }
 
-.education-delete-modal__content {
+.delete-modal__content {
     position: relative;
     z-index: 1;
     width: min(100%, 480px);
@@ -506,7 +506,7 @@ h1, .brand {
     box-shadow: 0 1rem 3rem rgba(28, 25, 23, 0.22);
 }
 
-.education-delete-modal__content h2 {
+.delete-modal__content h2 {
     margin: 0 0 0.75rem;
     font-family:
         "Space Grotesk",
@@ -515,7 +515,7 @@ h1, .brand {
     font-size: 1.5rem;
 }
 
-.education-delete-modal__close {
+.delete-modal__close {
     position: absolute;
     top: 1rem;
     right: 1rem;
@@ -528,7 +528,7 @@ h1, .brand {
     cursor: pointer;
 }
 
-.education-delete-modal__actions {
+.delete-modal__actions {
     display: flex;
     justify-content: flex-end;
     gap: 0.75rem;
@@ -536,45 +536,137 @@ h1, .brand {
 }
 
 @media (max-width: 600px) {
-    .education-header {
+    .section-header {
         align-items: flex-start;
         flex-direction: column;
     }
 
-    .education-add-button {
+    .add-button {
         width: 100%;
         justify-content: center;
     }
 
-    .education-grid {
+    .card-grid--two {
         grid-template-columns: 1fr;
     }
 
-    .education-search {
+    .search-form {
         flex-direction: column;
     }
 
-    .education-search .button {
+    .search-form .button {
         width: 100%;
     }
 
-    .education-delete-modal {
+    .delete-modal {
         align-items: flex-end;
         padding: 0;
     }
 
-    .education-delete-modal__content {
+    .delete-modal__content {
         width: 100%;
         padding: 1.25rem;
         border-radius: var(--radius) var(--radius) 0 0;
     }
 
-    .education-delete-modal__actions {
+    .delete-modal__actions {
         flex-direction: column-reverse;
     }
 
-    .education-delete-modal__actions .button {
+    .delete-modal__actions .button {
         width: 100%;
         text-align: center;
     }
+}
+
+/* shared card behaviour */
+.card {
+    display: flex;
+    flex-direction: column;
+}
+
+.card-tags {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.badge-featured {
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.tech-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.tech-stack__item {
+    padding: 0.15rem 0.55rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* form extras */
+.form-group--checkbox {
+    display: flex;
+    align-items: center;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    gap: 0.6rem;
+}
+
+.form-group--checkbox label {
+    margin-bottom: 0;
+}
+
+.form-group--checkbox input {
+    width: auto;
+    accent-color: var(--accent);
+}
+
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+/* flash messages */
+.messages {
+    margin: 1.25rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.messages__item {
+    padding: 0.7rem 1rem;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius);
+    background: #fff;
+    font-weight: 600;
+}
+
+.messages__item + .messages__item {
+    margin-top: 0.5rem;
+}
+
+.messages__item--error {
+    border-left-color: #b42318;
+    color: #b42318;
 }

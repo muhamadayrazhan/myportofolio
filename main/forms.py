@@ -1,6 +1,15 @@
-from django.forms import ModelForm, NumberInput, Select, TextInput, Textarea, URLInput
+from django.forms import (
+    CheckboxInput,
+    DateInput,
+    ModelForm,
+    NumberInput,
+    Select,
+    TextInput,
+    Textarea,
+    URLInput,
+)
 
-from main.models import Education
+from main.models import Education, Experience, Project
 
 
 class EducationForm(ModelForm):
@@ -72,4 +81,123 @@ class EducationForm(ModelForm):
                     "placeholder": "https://drive.google.com/thumbnail?id=...&sz=w1000",
                 }
             ),
+        }
+
+
+class ExperienceForm(ModelForm):
+    class Meta:
+        model = Experience
+        fields = [
+            "title",
+            "description",
+            "category",
+            "thumbnail",
+            "started_at",
+            "ended_at",
+        ]
+
+        labels = {
+            "title": "Nama Posisi / Kegiatan",
+            "description": "Deskripsi Pengalaman",
+            "category": "Kategori Pengalaman",
+            "thumbnail": "URL Gambar / Logo",
+            "started_at": "Tanggal Mulai",
+            "ended_at": "Tanggal Selesai",
+        }
+
+        widgets = {
+            "title": TextInput(
+                attrs={
+                    "placeholder": "IT Force / Staff",
+                    "maxlength": 255,
+                }
+            ),
+            "description": Textarea(
+                attrs={
+                    "placeholder": "Ceritakan pengalamanmu di sini",
+                    "rows": 3,
+                }
+            ),
+            "category": Select(),
+            "thumbnail": URLInput(
+                attrs={
+                    "placeholder": "https://drive.google.com/thumbnail?id=...&sz=w1000",
+                }
+            ),
+            "started_at": DateInput(
+                attrs={
+                    "type": "date",
+                }
+            ),
+            "ended_at": DateInput(
+                attrs={
+                    "type": "date",
+                }
+            ),
+        }
+
+
+class ProjectForm(ModelForm):
+    class Meta:
+        model = Project
+        fields = [
+            "title",
+            "description",
+            "category",
+            "tech_stack",
+            "project_url",
+            "project_image_url",
+            "year",
+            "is_featured",
+        ]
+
+        labels = {
+            "title": "Nama Proyek",
+            "description": "Deskripsi Proyek",
+            "category": "Kategori Proyek",
+            "tech_stack": "Tech Stack",
+            "project_url": "URL Proyek",
+            "project_image_url": "URL Gambar Proyek",
+            "year": "Tahun Pengerjaan",
+            "is_featured": "Tampilkan sebagai proyek unggulan",
+        }
+
+        widgets = {
+            "title": TextInput(
+                attrs={
+                    "placeholder": "Portofolio Pribadi",
+                    "maxlength": 255,
+                }
+            ),
+            "description": Textarea(
+                attrs={
+                    "placeholder": "Ceritakan proyekmu di sini",
+                    "rows": 3,
+                }
+            ),
+            "category": Select(),
+            "tech_stack": TextInput(
+                attrs={
+                    "placeholder": "Django, SQLite, HTML, CSS",
+                    "maxlength": 255,
+                }
+            ),
+            "project_url": URLInput(
+                attrs={
+                    "placeholder": "https://github.com/muhamadayrazhan/myportofolio",
+                }
+            ),
+            "project_image_url": URLInput(
+                attrs={
+                    "placeholder": "https://drive.google.com/thumbnail?id=...&sz=w1000",
+                }
+            ),
+            "year": NumberInput(
+                attrs={
+                    "placeholder": "2026",
+                    "min": 1990,
+                    "max": 2100,
+                }
+            ),
+            "is_featured": CheckboxInput(),
         }
