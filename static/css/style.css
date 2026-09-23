@@ -670,3 +670,48 @@ h1, .brand {
     border-left-color: #b42318;
     color: #b42318;
 }
+
+/* auth & star */
+.nav-user {
+    color: var(--accent);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.form-help {
+    margin-top: 0.35rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.form-help ul {
+    margin: 0;
+    padding-left: 1.1rem;
+}
+
+.form-footer {
+    margin-top: 1rem;
+    font-size: 0.95rem;
+}
+
+.star-form {
+    display: inline;
+}
+
+.button-star {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--ink);
+}
+
+.button-star.is-starred {
+    background: var(--accent);
+}
+
+.star-count {
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.25);
+    font-size: 0.8rem;
+}

@@ -1,4 +1,6 @@
 import uuid
+
+from django.contrib.auth.models import User
 from django.db import models
 
 class Experience(models.Model):
@@ -93,6 +95,11 @@ class Project(models.Model):
     project_image_url = models.URLField(blank=True, max_length=500)
     year = models.PositiveIntegerField()
     is_featured = models.BooleanField(default=False)
+    # Satu proyek bisa di-star banyak pengguna, dan satu pengguna bisa
+    # mem-star banyak proyek.
+    starred_by = models.ManyToManyField(
+        User, related_name="starred_projects", blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

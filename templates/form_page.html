@@ -10,12 +10,18 @@
                 <h1>{{ page_title }}</h1>
                 <form method="post" action="" class="entity-form">
                     {% csrf_token %}
+                    {% for error in form.non_field_errors %}
+                        <p class="form-error">{{ error }}</p>
+                    {% endfor %}
                     {% include "components/form_fields.html" %}
                     <div class="form-actions">
                         <button type="submit" class="button">{{ submit_label }}</button>
-                        <a href="{{ cancel_url }}" class="button button-secondary">Batal</a>
+                        {% if cancel_url %}
+                            <a href="{{ cancel_url }}" class="button button-secondary">Batal</a>
+                        {% endif %}
                     </div>
                 </form>
+                {% block form_footer %}{% endblock form_footer %}
             </div>
         </section>
     </main>

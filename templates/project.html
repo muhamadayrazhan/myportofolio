@@ -9,10 +9,12 @@
                 <p class="section-kicker">Karya yang pernah saya bangun</p>
                 <div class="section-header">
                     <h1>Project</h1>
-                    <a href="{% url 'main:create_project' %}" class="button add-button">
-                        <span aria-hidden="true">+</span>
-                        Tambah Proyek
-                    </a>
+                    {% if user.is_superuser %}
+                        <a href="{% url 'main:create_project' %}" class="button add-button">
+                            <span aria-hidden="true">+</span>
+                            Tambah Proyek
+                        </a>
+                    {% endif %}
                 </div>
 
                 <form method="get" action="{% url 'main:show_project' %}" class="search-form">
@@ -52,10 +54,13 @@
                                     {% if project.project_url %}
                                         <a href="{{ project.project_url }}" class="button">Lihat Proyek</a>
                                     {% endif %}
-                                    <a href="{% url 'main:edit_project' project.id %}"
-                                       class="button button-secondary">Edit</a>
-                                    {% url 'main:delete_project' project.id as delete_url %}
-                                    {% include "components/delete_modal.html" with modal_id=project.id entity_name="Proyek" item_label=project.title delete_url=delete_url %}
+                                    {% include "components/project_star.html" with project=project %}
+                                    {% if user.is_superuser %}
+                                        <a href="{% url 'main:edit_project' project.id %}"
+                                           class="button button-secondary">Edit</a>
+                                        {% url 'main:delete_project' project.id as delete_url %}
+                                        {% include "components/delete_modal.html" with modal_id=project.id entity_name="Proyek" item_label=project.title delete_url=delete_url %}
+                                    {% endif %}
                                 </div>
                             </div>
                         </article>

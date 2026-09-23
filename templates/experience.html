@@ -9,10 +9,12 @@
                 <p class="section-kicker">Perjalanan saya sejauh ini</p>
                 <div class="section-header">
                     <h1>Experience</h1>
-                    <a href="{% url 'main:create_experience' %}" class="button add-button">
-                        <span aria-hidden="true">+</span>
-                        Tambah Pengalaman
-                    </a>
+                    {% if user.is_superuser %}
+                        <a href="{% url 'main:create_experience' %}" class="button add-button">
+                            <span aria-hidden="true">+</span>
+                            Tambah Pengalaman
+                        </a>
+                    {% endif %}
                 </div>
 
                 <form method="get" action="{% url 'main:show_experience' %}" class="search-form">
@@ -44,10 +46,12 @@
                                     <p class="card-meta">Selesai</p>
                                 {% endif %}
                                 <div class="card-actions">
-                                    <a href="{% url 'main:edit_experience' experience.id %}"
-                                       class="button button-secondary">Edit</a>
-                                    {% url 'main:delete_experience' experience.id as delete_url %}
-                                    {% include "components/delete_modal.html" with modal_id=experience.id entity_name="Pengalaman" item_label=experience.title delete_url=delete_url %}
+                                    {% if user.is_superuser %}
+                                        <a href="{% url 'main:edit_experience' experience.id %}"
+                                           class="button button-secondary">Edit</a>
+                                        {% url 'main:delete_experience' experience.id as delete_url %}
+                                        {% include "components/delete_modal.html" with modal_id=experience.id entity_name="Pengalaman" item_label=experience.title delete_url=delete_url %}
+                                    {% endif %}
                                 </div>
                             </div>
                         </article>
