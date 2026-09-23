@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block meta %}
+    <title>Education - {{ name }}</title>
+{% endblock meta %}
+{% block content %}
+    <main>
+        <section class="page-section" id="education">
+            <div class="container">
+                <p class="section-kicker">Riwayat pendidikan saya</p>
+                <div class="section-header">
+                    <h1>Education</h1>
+                    {% if user.is_superuser %}
+                        <a href="{% url 'main:create_education' %}" class="button add-button">
+                            <span aria-hidden="true">+</span>
+                            Tambah Pendidikan
+                        </a>
+                    {% endif %}
+                </div>
+
+                <form method="get" action="{% url 'main:show_education' %}" class="search-form">
+                    <input type="search"
+                           name="institution"
+                           value="{{ institution_query }}"
+                           placeholder="Cari berdasarkan nama institusi"
+                           class="search-form__input"
+                           aria-label="Cari berdasarkan nama institusi">
+                    <button type="submit" class="button">Cari</button>
+                </form>
+
+                <div class="card-grid card-grid--two">
+                    {% for education in education_list %}
+                        <article class="card">
+                            {% if education.institution_image_url %}
+                                <img src="{{ education.institution_image_url }}"
+                                     alt="Gambar {{ education.institution }}"
+                                     class="card-image">
+                            {% endif %}
+                            <span class="card-tag">{{ education.get_level_display }}</span>
+                            <h2>{{ education.institution }}</h2>
+                            {% if education.major %}
+                                <p class="education-major">{{ education.major }}</p>
+                            {% endif %}
+                            <p class="card-description">{{ education.description }}</p>
+                            <div class="card-footer">
+                                <p class="card-meta">{{ education.period }}</p>
+                                <div class="card-actions">
+                                    {% if education.institution_url %}
+                                        <a href="{{ education.institution_url }}" class="button">Lihat Institusi</a>
+                                    {% endif %}
+                                    {% if user.is_superuser %}
+                                        <a href="{% url 'main:edit_education' education.id %}"
+                                           class="button button-secondary">Edit</a>
+                                        {% url 'main:delete_education' education.id as delete_url %}
+                                        {% include "components/delete_modal.html" with modal_id=education.id entity_name="Pendidikan" item_label=education.institution delete_url=delete_url %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </article>
+                    {% empty %}
+                        {% if institution_query %}
+                            <p class="empty-state">Tidak ada pendidikan dengan nama institusi tersebut.</p>
+                        {% else %}
+                            <p class="empty-state">Belum ada riwayat pendidikan yang ditambahkan.</p>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    </main>
+{% endblock content %}
