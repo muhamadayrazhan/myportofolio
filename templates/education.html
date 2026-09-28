@@ -9,7 +9,7 @@
                 <p class="section-kicker">Riwayat pendidikan saya</p>
                 <div class="section-header">
                     <h1>Education</h1>
-                    {% if user.is_superuser %}
+                    {% if perms.main.add_education %}
                         <a href="{% url 'main:create_education' %}" class="button add-button">
                             <span aria-hidden="true">+</span>
                             Tambah Pendidikan
@@ -47,9 +47,11 @@
                                     {% if education.institution_url %}
                                         <a href="{{ education.institution_url }}" class="button">Lihat Institusi</a>
                                     {% endif %}
-                                    {% if user.is_superuser %}
+                                    {% if perms.main.change_education %}
                                         <a href="{% url 'main:edit_education' education.id %}"
                                            class="button button-secondary">Edit</a>
+                                    {% endif %}
+                                    {% if perms.main.delete_education %}
                                         {% url 'main:delete_education' education.id as delete_url %}
                                         {% include "components/delete_modal.html" with modal_id=education.id entity_name="Pendidikan" item_label=education.institution delete_url=delete_url %}
                                     {% endif %}

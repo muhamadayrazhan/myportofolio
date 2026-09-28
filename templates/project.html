@@ -9,7 +9,7 @@
                 <p class="section-kicker">Karya yang pernah saya bangun</p>
                 <div class="section-header">
                     <h1>Project</h1>
-                    {% if user.is_superuser %}
+                    {% if perms.main.add_project %}
                         <a href="{% url 'main:create_project' %}" class="button add-button">
                             <span aria-hidden="true">+</span>
                             Tambah Proyek
@@ -55,9 +55,11 @@
                                         <a href="{{ project.project_url }}" class="button">Lihat Proyek</a>
                                     {% endif %}
                                     {% include "components/project_star.html" with project=project %}
-                                    {% if user.is_superuser %}
+                                    {% if perms.main.change_project %}
                                         <a href="{% url 'main:edit_project' project.id %}"
                                            class="button button-secondary">Edit</a>
+                                    {% endif %}
+                                    {% if perms.main.delete_project %}
                                         {% url 'main:delete_project' project.id as delete_url %}
                                         {% include "components/delete_modal.html" with modal_id=project.id entity_name="Proyek" item_label=project.title delete_url=delete_url %}
                                     {% endif %}

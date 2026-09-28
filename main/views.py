@@ -2,10 +2,9 @@ import datetime
 
 from django.contrib import messages
 from django.contrib.auth import login, logout
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core import serializers
-from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -14,6 +13,14 @@ from main.forms import EducationForm, ExperienceForm, ProjectForm
 from main.models import Education, Experience, Project
 
 NAME = "Muhamad Ayrazhan"
+
+# Empat peran dipetakan ke permission bawaan Django, bukan ke satu flag:
+#   pengunjung -> belum login; @login_required mengarahkan ke /login/
+#   pengguna   -> login tanpa permission apa pun; hanya boleh memberi star
+#   editor     -> anggota group "Editor" (dibuat di migrasi 0006), punya change_*
+#   pemilik    -> superuser; has_perm() selalu True sehingga lolos semuanya
+# raise_exception=True membuat akun yang tidak berhak menerima 403, bukan
+# redirect ke halaman login.
 
 
 def _filtered(model, request, field):
@@ -78,11 +85,8 @@ def show_education(request):
 
 
 @login_required(login_url="/login/")
+@permission_required("main.add_education", raise_exception=True)
 def create_education(request):
-    # Hanya pemilik portofolio (superuser) yang boleh mengubah data;
-    # akun terdaftar lain dihentikan dengan 403.
-    if not request.user.is_superuser:
-        raise PermissionDenied
     form = EducationForm(request.POST or None)
 
     if request.method == "POST" and form.is_valid():
@@ -102,11 +106,8 @@ def create_education(request):
 
 
 @login_required(login_url="/login/")
+@permission_required("main.change_education", raise_exception=True)
 def edit_education(request, education_id):
-    # Hanya pemilik portofolio (superuser) yang boleh mengubah data;
-    # akun terdaftar lain dihentikan dengan 403.
-    if not request.user.is_superuser:
-        raise PermissionDenied
     education = get_object_or_404(Education, pk=education_id)
     form = EducationForm(request.POST or None, instance=education)
 
@@ -127,11 +128,8 @@ def edit_education(request, education_id):
 
 
 @login_required(login_url="/login/")
+@permission_required("main.delete_education", raise_exception=True)
 def delete_education(request, education_id):
-    # Hanya pemilik portofolio (superuser) yang boleh mengubah data;
-    # akun terdaftar lain dihentikan dengan 403.
-    if not request.user.is_superuser:
-        raise PermissionDenied
     education = get_object_or_404(Education, pk=education_id)
 
     if request.method == "POST":
@@ -166,11 +164,8 @@ def show_experience(request):
 
 
 @login_required(login_url="/login/")
+@permission_required("main.add_experience", raise_exception=True)
 def create_experience(request):
-    # Hanya pemilik portofolio (superuser) yang boleh mengubah data;
-    # akun terdaftar lain dihentikan dengan 403.
-    if not request.user.is_superuser:
-        raise PermissionDenied
     form = ExperienceForm(request.POST or None)
 
     if request.method == "POST" and form.is_valid():
@@ -190,11 +185,8 @@ def create_experience(request):
 
 
 @login_required(login_url="/login/")
+@permission_required("main.change_experience", raise_exception=True)
 def edit_experience(request, experience_id):
-    # Hanya pemilik portofolio (superuser) yang boleh mengubah data;
-    # akun terdaftar lain dihentikan dengan 403.
-    if not request.user.is_superuser:
-        raise PermissionDenied
     experience = get_object_or_404(Experience, pk=experience_id)
     form = ExperienceForm(request.POST or None, instance=experience)
 
@@ -215,11 +207,8 @@ def edit_experience(request, experience_id):
 
 
 @login_required(login_url="/login/")
+@permission_required("main.delete_experience", raise_exception=True)
 def delete_experience(request, experience_id):
-    # Hanya pemilik portofolio (superuser) yang boleh mengubah data;
-    # akun terdaftar lain dihentikan dengan 403.
-    if not request.user.is_superuser:
-        raise PermissionDenied
     experience = get_object_or_404(Experience, pk=experience_id)
 
     if request.method == "POST":
@@ -258,11 +247,8 @@ def show_project(request):
 
 
 @login_required(login_url="/login/")
+@permission_required("main.add_project", raise_exception=True)
 def create_project(request):
-    # Hanya pemilik portofolio (superuser) yang boleh mengubah data;
-    # akun terdaftar lain dihentikan dengan 403.
-    if not request.user.is_superuser:
-        raise PermissionDenied
     form = ProjectForm(request.POST or None)
 
     if request.method == "POST" and form.is_valid():
@@ -282,11 +268,8 @@ def create_project(request):
 
 
 @login_required(login_url="/login/")
+@permission_required("main.change_project", raise_exception=True)
 def edit_project(request, project_id):
-    # Hanya pemilik portofolio (superuser) yang boleh mengubah data;
-    # akun terdaftar lain dihentikan dengan 403.
-    if not request.user.is_superuser:
-        raise PermissionDenied
     project = get_object_or_404(Project, pk=project_id)
     form = ProjectForm(request.POST or None, instance=project)
 
@@ -307,11 +290,8 @@ def edit_project(request, project_id):
 
 
 @login_required(login_url="/login/")
+@permission_required("main.delete_project", raise_exception=True)
 def delete_project(request, project_id):
-    # Hanya pemilik portofolio (superuser) yang boleh mengubah data;
-    # akun terdaftar lain dihentikan dengan 403.
-    if not request.user.is_superuser:
-        raise PermissionDenied
     project = get_object_or_404(Project, pk=project_id)
 
     if request.method == "POST":
@@ -324,7 +304,8 @@ def delete_project(request, project_id):
 # ------------------------------------------------------------------ star
 
 
-# Tanpa cek is_superuser: semua akun yang sudah login boleh memberi star.
+# Tanpa @permission_required: memberi star adalah hak dasar setiap akun
+# yang sudah login, jadi pengguna biasa, editor, dan pemilik sama-sama boleh.
 @login_required(login_url="/login/")
 def toggle_star(request, project_id):
     project = get_object_or_404(Project, pk=project_id)

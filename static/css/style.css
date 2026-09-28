@@ -678,6 +678,17 @@ h1, .brand {
     font-weight: 700;
 }
 
+.nav-role {
+    padding: 0.1rem 0.5rem;
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
 .form-help {
     margin-top: 0.35rem;
     color: var(--text-muted);

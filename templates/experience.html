@@ -9,7 +9,7 @@
                 <p class="section-kicker">Perjalanan saya sejauh ini</p>
                 <div class="section-header">
                     <h1>Experience</h1>
-                    {% if user.is_superuser %}
+                    {% if perms.main.add_experience %}
                         <a href="{% url 'main:create_experience' %}" class="button add-button">
                             <span aria-hidden="true">+</span>
                             Tambah Pengalaman
@@ -46,9 +46,11 @@
                                     <p class="card-meta">Selesai</p>
                                 {% endif %}
                                 <div class="card-actions">
-                                    {% if user.is_superuser %}
+                                    {% if perms.main.change_experience %}
                                         <a href="{% url 'main:edit_experience' experience.id %}"
                                            class="button button-secondary">Edit</a>
+                                    {% endif %}
+                                    {% if perms.main.delete_experience %}
                                         {% url 'main:delete_experience' experience.id as delete_url %}
                                         {% include "components/delete_modal.html" with modal_id=experience.id entity_name="Pengalaman" item_label=experience.title delete_url=delete_url %}
                                     {% endif %}
