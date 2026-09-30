@@ -5,9 +5,10 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core import serializers
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.http import require_POST
 
 from main.forms import EducationForm, ExperienceForm, ProjectForm
 from main.models import Education, Experience, Project
@@ -222,11 +223,42 @@ def delete_experience(request, experience_id):
 
 
 def get_project_json(request):
+    # serializers.serialize tidak bisa memeriksa siapa yang sedang login, jadi
+    # JSON-nya dirakit manual supaya status star milik pengguna ikut terkirim.
+    # Merakit manual juga berarti hanya field yang memang dibutuhkan kartu yang
+    # dikirim: pk akun, email, dan password hash tidak pernah masuk ke respons.
     projects, _ = _filtered(Project, request, "title")
-    project_json = serializers.serialize(
-        "json", projects, use_natural_foreign_keys=True
-    )
-    return HttpResponse(project_json, content_type="application/json")
+    projects = projects.prefetch_related("starred_by")
+
+    data = []
+    for project in projects:
+        starred_users = project.starred_by.all()
+        is_starred = (
+            request.user in starred_users if request.user.is_authenticated else False
+        )
+
+        data.append(
+            {
+                "pk": str(project.id),
+                "fields": {
+                    "title": project.title,
+                    "description": project.description,
+                    "category": project.get_category_display(),
+                    "tech_stack_list": project.tech_stack_list,
+                    "project_url": project.project_url,
+                    "project_image_url": project.project_image_url,
+                    "year": project.year,
+                    "is_featured": project.is_featured,
+                    "star_count": starred_users.count(),
+                    "is_starred": is_starred,
+                    "starred_by_names": ", ".join(
+                        user.username for user in starred_users
+                    ),
+                },
+            }
+        )
+
+    return JsonResponse(data, safe=False)
 
 
 def get_project_xml(request):
@@ -238,10 +270,13 @@ def get_project_xml(request):
 
 
 def show_project(request):
+    # Daftar proyek kini diambil sendiri oleh browser lewat AJAX ke
+    # get_project_json, jadi view ini cukup mengirim kerangka halaman.
+    # ProjectForm() kosong dipakai untuk merender field di dalam modal tambah.
     context = {
         "name": NAME,
-        "project_list": _deserialize(get_project_json(request)),
         "title_query": request.GET.get("title", "").strip(),
+        "form": ProjectForm(),
     }
     return render(request, "project.html", context)
 
@@ -265,6 +300,38 @@ def create_project(request):
         "cancel_url": reverse("main:show_project"),
     }
     return render(request, "form_page.html", context)
+
+
+@require_POST
+def create_project_ajax(request):
+    # Pemeriksaan hak akses tetap wajib di server. Menyembunyikan tombol di
+    # template tidak mencegah siapa pun memanggil endpoint ini lewat fetch.
+    #
+    # @login_required sengaja tidak dipakai di sini: dekorator itu membalas
+    # pengunjung yang belum login dengan redirect ke halaman login, dan fetch
+    # akan mengikuti redirect tersebut lalu menerima HTML login dengan status
+    # 200 sehingga JavaScript tidak bisa mengenali kegagalannya. Karena
+    # AnonymousUser.has_perm() selalu False, satu pemeriksaan di bawah menolak
+    # pengunjung tanpa login, pengguna biasa, dan editor sekaligus dengan
+    # respons JSON 403 yang mudah dibaca JavaScript.
+    if not request.user.has_perm("main.add_project"):
+        return JsonResponse(
+            {"message": "Hanya pemilik portofolio yang dapat menambahkan proyek."},
+            status=403,
+        )
+
+    # ProjectForm dipakai ulang agar seluruh validasi yang sudah ada (field
+    # wajib, panjang maksimum, format URL, pembersihan tag HTML) tetap berlaku
+    # untuk permintaan AJAX.
+    form = ProjectForm(request.POST)
+    if form.is_valid():
+        project = form.save()
+        return JsonResponse(
+            {"message": "Proyek berhasil ditambahkan.", "pk": str(project.id)},
+            status=201,
+        )
+
+    return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
 
 
 @login_required(login_url="/login/")

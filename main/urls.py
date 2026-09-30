@@ -16,6 +16,7 @@ from main.views import (
     get_experience_xml,
     show_project,
     create_project,
+    create_project_ajax,
     edit_project,
     delete_project,
     get_project_json,
@@ -43,6 +44,7 @@ urlpatterns = [
     # project
     path("project/", show_project, name="show_project"),
     path("project/add/", create_project, name="create_project"),
+    path("project/add-ajax/", create_project_ajax, name="create_project_ajax"),
     path("project/<uuid:project_id>/edit/", edit_project, name="edit_project"),
     path("project/<uuid:project_id>/delete/", delete_project, name="delete_project"),
     path("project/<uuid:project_id>/star/", toggle_star, name="toggle_star"),

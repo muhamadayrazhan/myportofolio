@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.forms import (
     CheckboxInput,
     DateInput,
@@ -8,6 +9,8 @@ from django.forms import (
     Textarea,
     URLInput,
 )
+
+from django.utils.html import strip_tags
 
 from main.models import Education, Experience, Project
 
@@ -201,3 +204,20 @@ class ProjectForm(ModelForm):
             ),
             "is_featured": CheckboxInput(),
         }
+
+    # Lapisan pertahanan kedua terhadap XSS: tag HTML dibuang sejak data masuk,
+    # sehingga berlaku untuk create_project maupun create_project_ajax yang
+    # sama-sama memakai form ini. Pertahanan utamanya tetap escaping saat data
+    # ditampilkan, karena hasil strip_tags tidak dijamin aman sebagai HTML dan
+    # pembersihan ini hanya berlaku untuk data baru.
+    def clean_title(self):
+        title = strip_tags(self.cleaned_data["title"]).strip()
+        if not title:
+            raise ValidationError("Nama proyek tidak boleh hanya berisi tag HTML.")
+        return title
+
+    def clean_tech_stack(self):
+        return strip_tags(self.cleaned_data["tech_stack"]).strip()
+
+    def clean_description(self):
+        return strip_tags(self.cleaned_data["description"]).strip()
