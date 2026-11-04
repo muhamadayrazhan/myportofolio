@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block meta %}
+    <title>Project - {{ name }}</title>
+{% endblock meta %}
+{% block content %}
+    <main>
+        <section class="page-section" id="project">
+            <div class="container">
+                <p class="section-kicker">Karya yang pernah saya bangun</p>
+                <div class="section-header">
+                    <h1>Project</h1>
+                    {% if perms.main.add_project %}
+                        <button type="button"
+                                class="button add-button"
+                                popovertarget="add-modal">
+                            <span aria-hidden="true">+</span>
+                            Tambah Proyek
+                        </button>
+                    {% endif %}
+                </div>
+
+                {# method dan action dilepas karena perannya diambil alih JavaScript. #}
+                {# value tetap dipertahankan agar kata kunci dari ?title= tetap terisi. #}
+                <form id="search-form" class="search-form">
+                    <input type="search"
+                           id="search-input"
+                           name="title"
+                           value="{{ title_query }}"
+                           placeholder="Cari berdasarkan nama proyek"
+                           class="search-form__input"
+                           aria-label="Cari berdasarkan nama proyek">
+                    <button type="submit" class="button">Cari</button>
+                </form>
+
+                <div id="loading" class="empty-state hide">
+                    <p>Memuat projects...</p>
+                </div>
+
+                <div id="error" class="empty-state hide">
+                    <p>Gagal memuat data projects. Silakan coba lagi.</p>
+                </div>
+
+                <div id="empty" class="empty-state hide">
+                    <p>Belum ada proyek yang ditambahkan atau ditemukan.</p>
+                </div>
+
+                <div id="grid" class="card-grid card-grid--two hide"></div>
+            </div>
+        </section>
+    </main>
+
+    {% if perms.main.add_project %}
+        {% url 'main:create_project' as fallback_url %}
+        {% include "components/form_modal.html" with modal_id="add-modal" form_id="add-form" modal_title="Tambah Proyek Baru" form_action=fallback_url submit_label="Tambah Proyek" %}
+    {% endif %}
+
+    {# Kartu tidak lagi memuat form star/hapus, jadi token CSRF dirender di #}
+    {# sini supaya cookie csrftoken tetap dibuat untuk akun yang login.    #}
+    {% csrf_token %}
+
+    <script src="{% static 'js/entity_list.js' %}"></script>
+    <script>
+        // ------------------------------------------------------------ konfigurasi
+        const PROJECT_LIST_ENDPOINT = "{% url 'api:project-list' %}";
+        const PROJECT_DETAIL_ENDPOINT = "{% url 'api:project-detail' '00000000-0000-0000-0000-000000000000' %}";
+        const PROJECT_STAR_ENDPOINT = "{% url 'api:project-star' '00000000-0000-0000-0000-000000000000' %}";
+        const LOGIN_URL = "{% url 'main:login' %}?next={% url 'main:show_project' %}";
+
+        const EDIT_URL_TEMPLATE = "{% url 'main:edit_project' '00000000-0000-0000-0000-000000000000' %}";
+
+        // Hanya soal tampilan; permission class di API yang menentukan izin.
+        const IS_AUTHENTICATED = "{{ user.is_authenticated|yesno:'true,false' }}" === "true";
+        const CAN_CHANGE_PROJECT = "{{ perms.main.change_project|yesno:'true,false' }}" === "true";
+        const CAN_DELETE_PROJECT = "{{ perms.main.delete_project|yesno:'true,false' }}" === "true";
+
+        // ----------------------------------------------------------- kartu proyek
+        // escapeHtml() membungkus setiap nilai dari database, karena innerHTML
+        // tidak punya auto-escaping seperti template Django.
+        function buildProjectCardElement(project) {
+            const articleElement = document.createElement('article');
+            articleElement.className = 'card';
+
+            const editUrl = entityEndpoint(EDIT_URL_TEMPLATE, project.id);
+
+            const imageHtml = project.project_image_url
+                ? `<img src="${escapeHtml(project.project_image_url)}"
+                        alt="Gambar ${escapeHtml(project.title)}"
+                        class="card-image">`
+                : '';
+
+            const featuredHtml = project.is_featured
+                ? '<span class="badge-featured">Featured</span>'
+                : '';
+
+            const techStackHtml = (project.tech_stack_list || [])
+                .map(tech => `<li class="tech-stack__item">${escapeHtml(tech)}</li>`)
+                .join('');
+
+            const urlHtml = project.project_url
+                ? `<a href="${escapeHtml(project.project_url)}" class="button">Lihat Proyek</a>`
+                : '';
+
+            const starTitle = project.star_count > 0
+                ? `Dibintangi oleh ${escapeHtml(project.starred_by_names)}`
+                : 'Jadilah yang pertama memberi star';
+            const starredClass = project.is_starred ? ' is-starred' : '';
+            const starText = project.is_starred ? 'Unstar' : 'Star';
+
+            // Pengunjung tanpa login diarahkan ke halaman login.
+            const starHtml = IS_AUTHENTICATED
+                ? `<button type="button"
+                           class="button button-star${starredClass}"
+                           data-action="star"
+                           data-id="${escapeHtml(project.id)}"
+                           title="${starTitle}">
+                       <span aria-hidden="true">&#9733;</span>
+                       ${starText}
+                       <span class="star-count">${escapeHtml(project.star_count)}</span>
+                   </button>`
+                : `<a href="${LOGIN_URL}"
+                      class="button button-star"
+                      title="Login terlebih dahulu untuk memberi star">
+                       <span aria-hidden="true">&#9733;</span>
+                       Star
+                       <span class="star-count">${escapeHtml(project.star_count)}</span>
+                   </a>`;
+
+            const editHtml = CAN_CHANGE_PROJECT
+                ? `<a href="${escapeHtml(editUrl)}" class="button button-secondary">Edit</a>`
+                : '';
+
+            const deleteHtml = CAN_DELETE_PROJECT
+                ? `<button type="button"
+                           class="button button-danger"
+                           data-action="delete"
+                           data-id="${escapeHtml(project.id)}">Hapus</button>`
+                : '';
+
+            articleElement.innerHTML = `
+                ${imageHtml}
+                <div class="card-tags">
+                    <span class="card-tag">${escapeHtml(project.category_display)}</span>
+                    ${featuredHtml}
+                </div>
+                <h2>${escapeHtml(project.title)}</h2>
+                <p class="card-description">${escapeHtml(project.description)}</p>
+                <ul class="tech-stack">${techStackHtml}</ul>
+                <div class="card-footer">
+                    <p class="card-meta">${escapeHtml(project.year)}</p>
+                    <div class="card-actions">
+                        ${urlHtml}
+                        ${starHtml}
+                        ${editHtml}
+                        ${deleteHtml}
+                    </div>
+                </div>
+            `;
+            return articleElement;
+        }
+
+        // ------------------------------------------------------------------ start
+        initEntityList({
+            listEndpoint: PROJECT_LIST_ENDPOINT,
+            detailEndpoint: PROJECT_DETAIL_ENDPOINT,
+            starEndpoint: PROJECT_STAR_ENDPOINT,
+            searchParam: 'title',
+            formFields: [
+                'title', 'description', 'category', 'tech_stack',
+                'project_url', 'project_image_url', 'year', 'is_featured',
+            ],
+            booleanFields: ['is_featured'],
+            buildCard: buildProjectCardElement,
+            entityLabel: 'proyek',
+            deleteConfirm: 'Yakin ingin menghapus proyek ini?',
+        });
+    </script>
+{% endblock content %}

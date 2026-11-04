@@ -1,0 +1,14 @@
+{% load static %}
+{% comment %}
+    Notifikasi toast global. Di-include sekali di base.html sehingga fungsi
+    showToast() tersedia di setiap halaman yang meng-extend template itu.
+    popover="manual" menempatkan toast di top layer browser, jadi toast selalu
+    tampil di atas elemen lain termasuk modal.
+{% endcomment %}
+<div id="toast-component" class="toast-component toast-hidden" popover="manual">
+    <div class="toast-content">
+        <h3 id="toast-title" class="toast-title">This is a Sample Title</h3>
+        <p id="toast-message" class="toast-message">This is a Sample Message</p>
+    </div>
+</div>
+<script src="{% static 'js/toast.js' %}"></script>

@@ -1,45 +1,33 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Muhamad Ayrazhan - Portfolio</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-<body>
-    <header class="site-header">
-        <div class="container">
-            <a href="#profile" class="brand">Muhamad Ayrazhan</a>
-            <nav>
-                <a href="#profile">Profile</a>
-            </nav>
-        </div>
-    </header>
-
+{% extends 'base.html' %}
+{% block meta %}
+    <title>{{ name }} - Portfolio</title>
+{% endblock meta %}
+{% block content %}
     <main>
         <section class="hero" id="profile">
             <div class="container hero-grid">
                 <div class="hero-identity">
                     <p class="hero-kicker">Computer Science &middot; Universitas Indonesia</p>
-                    <h1>Muhamad Ayrazhan</h1>
+                    <h1>{{ name }}</h1>
                 </div>
                 <div class="hero-photo">
                     <div class="photo-block"></div>
-                    <img class="avatar" src="/static/img/ayrazhan.jpg" alt="Photo of Muhamad Ayrazhan">
+                    <img class="avatar" src="/static/img/ayrazhan.jpg" alt="Photo of {{ name }}">
                 </div>
                 <div class="hero-details">
-                    <p class="bio">CS student at Universitas Indonesia, interested in software engineering and machine learning.</p>
+                    <p class="bio">{{ bio }}</p>
                     <dl class="meta-list">
                         <div class="meta-row">
                             <dt>NPM</dt>
-                            <dd>2506586236</dd>
+                            <dd>{{ npm }}</dd>
                         </div>
                         <div class="meta-row">
                             <dt>Program</dt>
-                            <dd>S1 Ilmu Komputer</dd>
+                            <dd>{{ study_program }}</dd>
+                        </div>
+                        <div class="meta-row">
+                            <dt>Sesi Terakhir Login</dt>
+                            <dd>{{ last_login }}</dd>
                         </div>
                     </dl>
                     <div class="social-links">
@@ -50,12 +38,37 @@
                 </div>
             </div>
         </section>
-    </main>
 
-    <footer class="site-footer">
-        <div class="container">
-            <p>&copy; 2026 Muhamad Ayrazhan. Fakultas Ilmu Komputer, Universitas Indonesia.</p>
-        </div>
-    </footer>
-</body>
-</html>
+        <section class="experience" id="experience">
+            <div class="container">
+                <h2 class="section-title">Experience</h2>
+                <div class="experience-list">
+                    <div class="experience-item">
+                        <div class="experience-header">
+                            <h3>IT Force / Staff</h3>
+                            <span class="experience-period">July 2026 - Present</span>
+                        </div>
+                        <p class="experience-org">FUKI Fasilkom UI</p>
+                        <p class="experience-desc">Person In Charge of Maintaining FUKI's Internal Website program, participated in creating FUKI's Ilmi Website.</p>
+                    </div>
+                    <div class="experience-item">
+                        <div class="experience-header">
+                            <h3>AIC's Event Division Staff</h3>
+                            <span class="experience-period">April 2026 - Present</span>
+                        </div>
+                        <p class="experience-org">COMPFEST 18</p>
+                        <p class="experience-desc">Participate in making the rundown, broadcast text, and being the Master of Ceremony at AIC's Technical Meeting and AIC Talks 1.0.</p>
+                    </div>
+                    <div class="experience-item">
+                        <div class="experience-header">
+                            <h3>E-Sports Division Coordinator</h3>
+                            <span class="experience-period">February 2023 - October 2023</span>
+                        </div>
+                        <p class="experience-org">Smanda Olympic 23</p>
+                        <p class="experience-desc">Coordinated the E-Sports Division, managing events and activities related to competitive gaming.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+{% endblock content %}
