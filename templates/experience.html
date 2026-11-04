@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block meta %}
     <title>Experience - {{ name }}</title>
 {% endblock meta %}
@@ -10,15 +11,20 @@
                 <div class="section-header">
                     <h1>Experience</h1>
                     {% if perms.main.add_experience %}
-                        <a href="{% url 'main:create_experience' %}" class="button add-button">
+                        <button type="button"
+                                class="button add-button"
+                                popovertarget="add-modal">
                             <span aria-hidden="true">+</span>
                             Tambah Pengalaman
-                        </a>
+                        </button>
                     {% endif %}
                 </div>
 
-                <form method="get" action="{% url 'main:show_experience' %}" class="search-form">
+                {# method dan action dilepas karena perannya diambil alih JavaScript. #}
+                {# value tetap dipertahankan agar kata kunci dari ?title= tetap terisi. #}
+                <form id="search-form" class="search-form">
                     <input type="search"
+                           id="search-input"
                            name="title"
                            value="{{ title_query }}"
                            placeholder="Cari berdasarkan nama posisi atau kegiatan"
@@ -27,45 +33,133 @@
                     <button type="submit" class="button">Cari</button>
                 </form>
 
-                <div class="card-grid">
-                    {% for experience in experience_list %}
-                        <article class="card">
-                            {% if experience.thumbnail %}
-                                <img src="{{ experience.thumbnail }}"
-                                     alt="Gambar {{ experience.title }}"
-                                     class="card-image">
-                            {% endif %}
-                            <span class="card-tag">{{ experience.get_category_display }}</span>
-                            <h2>{{ experience.title }}</h2>
-                            <p class="card-description">{{ experience.description }}</p>
-                            <div class="card-footer">
-                                <p class="card-meta">{{ experience.period }}</p>
-                                {% if experience.is_ongoing %}
-                                    <p class="card-meta">Sedang berlangsung</p>
-                                {% else %}
-                                    <p class="card-meta">Selesai</p>
-                                {% endif %}
-                                <div class="card-actions">
-                                    {% if perms.main.change_experience %}
-                                        <a href="{% url 'main:edit_experience' experience.id %}"
-                                           class="button button-secondary">Edit</a>
-                                    {% endif %}
-                                    {% if perms.main.delete_experience %}
-                                        {% url 'main:delete_experience' experience.id as delete_url %}
-                                        {% include "components/delete_modal.html" with modal_id=experience.id entity_name="Pengalaman" item_label=experience.title delete_url=delete_url %}
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </article>
-                    {% empty %}
-                        {% if title_query %}
-                            <p class="empty-state">Tidak ada pengalaman dengan nama tersebut.</p>
-                        {% else %}
-                            <p class="empty-state">Belum ada pengalaman yang ditambahkan.</p>
-                        {% endif %}
-                    {% endfor %}
+                <div id="loading" class="empty-state hide">
+                    <p>Memuat pengalaman...</p>
                 </div>
+
+                <div id="error" class="empty-state hide">
+                    <p>Gagal memuat data pengalaman. Silakan coba lagi.</p>
+                </div>
+
+                <div id="empty" class="empty-state hide">
+                    <p>Belum ada pengalaman yang ditambahkan atau ditemukan.</p>
+                </div>
+
+                <div id="grid" class="card-grid hide"></div>
             </div>
         </section>
     </main>
+
+    {% if perms.main.add_experience %}
+        {% url 'main:create_experience' as fallback_url %}
+        {% include "components/form_modal.html" with modal_id="add-modal" form_id="add-form" modal_title="Tambah Pengalaman Baru" form_action=fallback_url submit_label="Tambah Pengalaman" %}
+    {% endif %}
+
+    {# Kartu tidak lagi memuat form star/hapus, jadi token CSRF dirender di #}
+    {# sini supaya cookie csrftoken tetap dibuat untuk akun yang login.    #}
+    {% csrf_token %}
+
+    <script src="{% static 'js/entity_list.js' %}"></script>
+    <script>
+        // ------------------------------------------------------------ konfigurasi
+        const EXPERIENCE_LIST_ENDPOINT = "{% url 'api:experience-list' %}";
+        const EXPERIENCE_DETAIL_ENDPOINT = "{% url 'api:experience-detail' '00000000-0000-0000-0000-000000000000' %}";
+        const EXPERIENCE_STAR_ENDPOINT = "{% url 'api:experience-star' '00000000-0000-0000-0000-000000000000' %}";
+        const LOGIN_URL = "{% url 'main:login' %}?next={% url 'main:show_experience' %}";
+
+        const EDIT_URL_TEMPLATE = "{% url 'main:edit_experience' '00000000-0000-0000-0000-000000000000' %}";
+
+        // Hanya soal tampilan; permission class di API yang menentukan izin.
+        const IS_AUTHENTICATED = "{{ user.is_authenticated|yesno:'true,false' }}" === "true";
+        const CAN_CHANGE_EXPERIENCE = "{{ perms.main.change_experience|yesno:'true,false' }}" === "true";
+        const CAN_DELETE_EXPERIENCE = "{{ perms.main.delete_experience|yesno:'true,false' }}" === "true";
+
+        // ------------------------------------------------------- kartu pengalaman
+        // escapeHtml() membungkus setiap nilai dari database, karena innerHTML
+        // tidak punya auto-escaping seperti template Django.
+        function buildExperienceCardElement(experience) {
+            const articleElement = document.createElement('article');
+            articleElement.className = 'card';
+
+            const editUrl = entityEndpoint(EDIT_URL_TEMPLATE, experience.id);
+
+            const imageHtml = experience.thumbnail
+                ? `<img src="${escapeHtml(experience.thumbnail)}"
+                        alt="Gambar ${escapeHtml(experience.title)}"
+                        class="card-image">`
+                : '';
+
+            const statusHtml = experience.is_ongoing
+                ? '<p class="card-meta">Sedang berlangsung</p>'
+                : '<p class="card-meta">Selesai</p>';
+
+            const starTitle = experience.star_count > 0
+                ? `Dibintangi oleh ${escapeHtml(experience.starred_by_names)}`
+                : 'Jadilah yang pertama memberi star';
+            const starredClass = experience.is_starred ? ' is-starred' : '';
+            const starText = experience.is_starred ? 'Unstar' : 'Star';
+
+            // Pengunjung tanpa login diarahkan ke halaman login.
+            const starHtml = IS_AUTHENTICATED
+                ? `<button type="button"
+                           class="button button-star${starredClass}"
+                           data-action="star"
+                           data-id="${escapeHtml(experience.id)}"
+                           title="${starTitle}">
+                       <span aria-hidden="true">&#9733;</span>
+                       ${starText}
+                       <span class="star-count">${escapeHtml(experience.star_count)}</span>
+                   </button>`
+                : `<a href="${LOGIN_URL}"
+                      class="button button-star"
+                      title="Login terlebih dahulu untuk memberi star">
+                       <span aria-hidden="true">&#9733;</span>
+                       Star
+                       <span class="star-count">${escapeHtml(experience.star_count)}</span>
+                   </a>`;
+
+            const editHtml = CAN_CHANGE_EXPERIENCE
+                ? `<a href="${escapeHtml(editUrl)}" class="button button-secondary">Edit</a>`
+                : '';
+
+            const deleteHtml = CAN_DELETE_EXPERIENCE
+                ? `<button type="button"
+                           class="button button-danger"
+                           data-action="delete"
+                           data-id="${escapeHtml(experience.id)}">Hapus</button>`
+                : '';
+
+            articleElement.innerHTML = `
+                ${imageHtml}
+                <span class="card-tag">${escapeHtml(experience.category_display)}</span>
+                <h2>${escapeHtml(experience.title)}</h2>
+                <p class="card-description">${escapeHtml(experience.description)}</p>
+                <div class="card-footer">
+                    <p class="card-meta">${escapeHtml(experience.period)}</p>
+                    ${statusHtml}
+                    <div class="card-actions">
+                        ${starHtml}
+                        ${editHtml}
+                        ${deleteHtml}
+                    </div>
+                </div>
+            `;
+            return articleElement;
+        }
+
+        // ------------------------------------------------------------------ start
+        initEntityList({
+            listEndpoint: EXPERIENCE_LIST_ENDPOINT,
+            detailEndpoint: EXPERIENCE_DETAIL_ENDPOINT,
+            starEndpoint: EXPERIENCE_STAR_ENDPOINT,
+            searchParam: 'title',
+            formFields: [
+                'title', 'description', 'category',
+                'thumbnail', 'started_at', 'ended_at',
+            ],
+            buildCard: buildExperienceCardElement,
+            entityLabel: 'pengalaman',
+            deleteConfirm: 'Yakin ingin menghapus pengalaman ini?',
+        });
+    </script>
 {% endblock content %}

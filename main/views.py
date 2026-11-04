@@ -35,10 +35,67 @@ def _filtered(model, request, field):
     return queryset, query
 
 
-def _deserialize(json_response):
-    """Turn a JSON HttpResponse from one of the API views back into objects."""
-    data = serializers.deserialize("json", json_response.content.decode("utf-8"))
-    return [item.object for item in data]
+def _star_fields(instance, request):
+    """Star info dari Tugas 4, dipakai ketiga endpoint JSON kartu."""
+    # Memanggil .all() sekali lalu memakai hasilnya berulang: kalau queryset-nya
+    # sudah prefetch_related("starred_by"), .count() dan pengecekan keanggotaan
+    # di bawah dilayani cache yang sama tanpa query tambahan.
+    starred_users = instance.starred_by.all()
+
+    return {
+        "star_count": starred_users.count(),
+        # serializers.serialize tidak bisa memeriksa siapa yang sedang login,
+        # dan inilah alasan utama JSON di bawah dirakit manual.
+        "is_starred": (
+            request.user in starred_users if request.user.is_authenticated else False
+        ),
+        "starred_by_names": ", ".join(user.username for user in starred_users),
+    }
+
+
+def _create_entity_ajax(
+    request, form_class, permission, denied_message, created_message
+):
+    """Shared body of the three create_*_ajax views."""
+    # Pemeriksaan hak akses tetap wajib di server. Menyembunyikan tombol di
+    # template tidak mencegah siapa pun memanggil endpoint ini lewat fetch.
+    #
+    # @login_required sengaja tidak dipakai di view yang memanggil helper ini:
+    # dekorator itu membalas pengunjung yang belum login dengan redirect ke
+    # halaman login, dan fetch akan mengikuti redirect tersebut lalu menerima
+    # HTML login dengan status 200 sehingga JavaScript tidak bisa mengenali
+    # kegagalannya. Karena AnonymousUser.has_perm() selalu False, satu
+    # pemeriksaan di bawah menolak pengunjung tanpa login, pengguna biasa, dan
+    # editor sekaligus dengan respons JSON 403 yang mudah dibaca JavaScript.
+    if not request.user.has_perm(permission):
+        return JsonResponse({"message": denied_message}, status=403)
+
+    # ModelForm yang sama dipakai ulang agar seluruh validasi yang sudah ada
+    # (field wajib, panjang maksimum, format URL, pembersihan tag HTML) tetap
+    # berlaku untuk permintaan AJAX.
+    form = form_class(request.POST)
+    if form.is_valid():
+        instance = form.save()
+        return JsonResponse(
+            {"message": created_message, "pk": str(instance.id)}, status=201
+        )
+
+    return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
+
+
+def _toggle_star(request, model, pk, redirect_to):
+    """Shared body of the three toggle_star_* views."""
+    instance = get_object_or_404(model, pk=pk)
+
+    if request.method == "POST":
+        # Kalau akun ini sudah pernah memberi star, batalkan star-nya.
+        # Kalau belum, tambahkan star.
+        if request.user in instance.starred_by.all():
+            instance.starred_by.remove(request.user)
+        else:
+            instance.starred_by.add(request.user)
+
+    return redirect(redirect_to)
 
 
 def show_main(request):
@@ -65,9 +122,31 @@ def show_main(request):
 
 
 def get_education_json(request):
+    # JSON dirakit manual, bukan lewat serializers.serialize, supaya status star
+    # milik pengguna yang sedang login ikut terkirim. Efek sampingnya: hanya
+    # field yang memang dibutuhkan kartu yang dikirim, jadi pk akun, email, dan
+    # password hash tidak pernah masuk ke respons.
     educations, _ = _filtered(Education, request, "institution")
-    education_json = serializers.serialize("json", educations)
-    return HttpResponse(education_json, content_type="application/json")
+    educations = educations.prefetch_related("starred_by")
+
+    data = [
+        {
+            "pk": str(education.id),
+            "fields": {
+                "institution": education.institution,
+                "level": education.get_level_display(),
+                "major": education.major,
+                "description": education.description,
+                "period": education.period,
+                "institution_url": education.institution_url,
+                "institution_image_url": education.institution_image_url,
+                **_star_fields(education, request),
+            },
+        }
+        for education in educations
+    ]
+
+    return JsonResponse(data, safe=False)
 
 
 def get_education_xml(request):
@@ -77,10 +156,13 @@ def get_education_xml(request):
 
 
 def show_education(request):
+    # Daftar pendidikan kini diambil sendiri oleh browser lewat AJAX ke
+    # get_education_json, jadi view ini cukup mengirim kerangka halaman.
+    # EducationForm() kosong dipakai untuk merender field di dalam modal tambah.
     context = {
         "name": NAME,
-        "education_list": _deserialize(get_education_json(request)),
         "institution_query": request.GET.get("institution", "").strip(),
+        "form": EducationForm(),
     }
     return render(request, "education.html", context)
 
@@ -104,6 +186,17 @@ def create_education(request):
         "cancel_url": reverse("main:show_education"),
     }
     return render(request, "form_page.html", context)
+
+
+@require_POST
+def create_education_ajax(request):
+    return _create_entity_ajax(
+        request,
+        EducationForm,
+        "main.add_education",
+        "Hanya pemilik portofolio yang dapat menambahkan riwayat pendidikan.",
+        "Riwayat pendidikan berhasil ditambahkan.",
+    )
 
 
 @login_required(login_url="/login/")
@@ -144,9 +237,27 @@ def delete_education(request, education_id):
 
 
 def get_experience_json(request):
+    # Dirakit manual dengan alasan yang sama seperti get_education_json.
     experiences, _ = _filtered(Experience, request, "title")
-    experience_json = serializers.serialize("json", experiences)
-    return HttpResponse(experience_json, content_type="application/json")
+    experiences = experiences.prefetch_related("starred_by")
+
+    data = [
+        {
+            "pk": str(experience.id),
+            "fields": {
+                "title": experience.title,
+                "description": experience.description,
+                "category": experience.get_category_display(),
+                "thumbnail": experience.thumbnail,
+                "period": experience.period,
+                "is_ongoing": experience.is_ongoing,
+                **_star_fields(experience, request),
+            },
+        }
+        for experience in experiences
+    ]
+
+    return JsonResponse(data, safe=False)
 
 
 def get_experience_xml(request):
@@ -156,10 +267,11 @@ def get_experience_xml(request):
 
 
 def show_experience(request):
+    # Kerangka halaman saja; datanya diambil browser lewat get_experience_json.
     context = {
         "name": NAME,
-        "experience_list": _deserialize(get_experience_json(request)),
         "title_query": request.GET.get("title", "").strip(),
+        "form": ExperienceForm(),
     }
     return render(request, "experience.html", context)
 
@@ -183,6 +295,17 @@ def create_experience(request):
         "cancel_url": reverse("main:show_experience"),
     }
     return render(request, "form_page.html", context)
+
+
+@require_POST
+def create_experience_ajax(request):
+    return _create_entity_ajax(
+        request,
+        ExperienceForm,
+        "main.add_experience",
+        "Hanya pemilik portofolio yang dapat menambahkan pengalaman.",
+        "Pengalaman berhasil ditambahkan.",
+    )
 
 
 @login_required(login_url="/login/")
@@ -223,40 +346,27 @@ def delete_experience(request, experience_id):
 
 
 def get_project_json(request):
-    # serializers.serialize tidak bisa memeriksa siapa yang sedang login, jadi
-    # JSON-nya dirakit manual supaya status star milik pengguna ikut terkirim.
-    # Merakit manual juga berarti hanya field yang memang dibutuhkan kartu yang
-    # dikirim: pk akun, email, dan password hash tidak pernah masuk ke respons.
+    # Dirakit manual dengan alasan yang sama seperti get_education_json.
     projects, _ = _filtered(Project, request, "title")
     projects = projects.prefetch_related("starred_by")
 
-    data = []
-    for project in projects:
-        starred_users = project.starred_by.all()
-        is_starred = (
-            request.user in starred_users if request.user.is_authenticated else False
-        )
-
-        data.append(
-            {
-                "pk": str(project.id),
-                "fields": {
-                    "title": project.title,
-                    "description": project.description,
-                    "category": project.get_category_display(),
-                    "tech_stack_list": project.tech_stack_list,
-                    "project_url": project.project_url,
-                    "project_image_url": project.project_image_url,
-                    "year": project.year,
-                    "is_featured": project.is_featured,
-                    "star_count": starred_users.count(),
-                    "is_starred": is_starred,
-                    "starred_by_names": ", ".join(
-                        user.username for user in starred_users
-                    ),
-                },
-            }
-        )
+    data = [
+        {
+            "pk": str(project.id),
+            "fields": {
+                "title": project.title,
+                "description": project.description,
+                "category": project.get_category_display(),
+                "tech_stack_list": project.tech_stack_list,
+                "project_url": project.project_url,
+                "project_image_url": project.project_image_url,
+                "year": project.year,
+                "is_featured": project.is_featured,
+                **_star_fields(project, request),
+            },
+        }
+        for project in projects
+    ]
 
     return JsonResponse(data, safe=False)
 
@@ -304,34 +414,13 @@ def create_project(request):
 
 @require_POST
 def create_project_ajax(request):
-    # Pemeriksaan hak akses tetap wajib di server. Menyembunyikan tombol di
-    # template tidak mencegah siapa pun memanggil endpoint ini lewat fetch.
-    #
-    # @login_required sengaja tidak dipakai di sini: dekorator itu membalas
-    # pengunjung yang belum login dengan redirect ke halaman login, dan fetch
-    # akan mengikuti redirect tersebut lalu menerima HTML login dengan status
-    # 200 sehingga JavaScript tidak bisa mengenali kegagalannya. Karena
-    # AnonymousUser.has_perm() selalu False, satu pemeriksaan di bawah menolak
-    # pengunjung tanpa login, pengguna biasa, dan editor sekaligus dengan
-    # respons JSON 403 yang mudah dibaca JavaScript.
-    if not request.user.has_perm("main.add_project"):
-        return JsonResponse(
-            {"message": "Hanya pemilik portofolio yang dapat menambahkan proyek."},
-            status=403,
-        )
-
-    # ProjectForm dipakai ulang agar seluruh validasi yang sudah ada (field
-    # wajib, panjang maksimum, format URL, pembersihan tag HTML) tetap berlaku
-    # untuk permintaan AJAX.
-    form = ProjectForm(request.POST)
-    if form.is_valid():
-        project = form.save()
-        return JsonResponse(
-            {"message": "Proyek berhasil ditambahkan.", "pk": str(project.id)},
-            status=201,
-        )
-
-    return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
+    return _create_entity_ajax(
+        request,
+        ProjectForm,
+        "main.add_project",
+        "Hanya pemilik portofolio yang dapat menambahkan proyek.",
+        "Proyek berhasil ditambahkan.",
+    )
 
 
 @login_required(login_url="/login/")
@@ -374,18 +463,18 @@ def delete_project(request, project_id):
 # Tanpa @permission_required: memberi star adalah hak dasar setiap akun
 # yang sudah login, jadi pengguna biasa, editor, dan pemilik sama-sama boleh.
 @login_required(login_url="/login/")
-def toggle_star(request, project_id):
-    project = get_object_or_404(Project, pk=project_id)
+def toggle_star_education(request, education_id):
+    return _toggle_star(request, Education, education_id, "main:show_education")
 
-    if request.method == "POST":
-        # Kalau akun ini sudah pernah memberi star, batalkan star-nya.
-        # Kalau belum, tambahkan star.
-        if request.user in project.starred_by.all():
-            project.starred_by.remove(request.user)
-        else:
-            project.starred_by.add(request.user)
 
-    return redirect("main:show_project")
+@login_required(login_url="/login/")
+def toggle_star_experience(request, experience_id):
+    return _toggle_star(request, Experience, experience_id, "main:show_experience")
+
+
+@login_required(login_url="/login/")
+def toggle_star_project(request, project_id):
+    return _toggle_star(request, Project, project_id, "main:show_project")
 
 
 # ------------------------------------------------------------------- auth

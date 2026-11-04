@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block meta %}
     <title>Education - {{ name }}</title>
 {% endblock meta %}
@@ -10,15 +11,20 @@
                 <div class="section-header">
                     <h1>Education</h1>
                     {% if perms.main.add_education %}
-                        <a href="{% url 'main:create_education' %}" class="button add-button">
+                        <button type="button"
+                                class="button add-button"
+                                popovertarget="add-modal">
                             <span aria-hidden="true">+</span>
                             Tambah Pendidikan
-                        </a>
+                        </button>
                     {% endif %}
                 </div>
 
-                <form method="get" action="{% url 'main:show_education' %}" class="search-form">
+                {# method dan action dilepas karena perannya diambil alih JavaScript. #}
+                {# value tetap dipertahankan agar kata kunci dari ?institution= terisi. #}
+                <form id="search-form" class="search-form">
                     <input type="search"
+                           id="search-input"
                            name="institution"
                            value="{{ institution_query }}"
                            placeholder="Cari berdasarkan nama institusi"
@@ -27,46 +33,138 @@
                     <button type="submit" class="button">Cari</button>
                 </form>
 
-                <div class="card-grid card-grid--two">
-                    {% for education in education_list %}
-                        <article class="card">
-                            {% if education.institution_image_url %}
-                                <img src="{{ education.institution_image_url }}"
-                                     alt="Gambar {{ education.institution }}"
-                                     class="card-image">
-                            {% endif %}
-                            <span class="card-tag">{{ education.get_level_display }}</span>
-                            <h2>{{ education.institution }}</h2>
-                            {% if education.major %}
-                                <p class="education-major">{{ education.major }}</p>
-                            {% endif %}
-                            <p class="card-description">{{ education.description }}</p>
-                            <div class="card-footer">
-                                <p class="card-meta">{{ education.period }}</p>
-                                <div class="card-actions">
-                                    {% if education.institution_url %}
-                                        <a href="{{ education.institution_url }}" class="button">Lihat Institusi</a>
-                                    {% endif %}
-                                    {% if perms.main.change_education %}
-                                        <a href="{% url 'main:edit_education' education.id %}"
-                                           class="button button-secondary">Edit</a>
-                                    {% endif %}
-                                    {% if perms.main.delete_education %}
-                                        {% url 'main:delete_education' education.id as delete_url %}
-                                        {% include "components/delete_modal.html" with modal_id=education.id entity_name="Pendidikan" item_label=education.institution delete_url=delete_url %}
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </article>
-                    {% empty %}
-                        {% if institution_query %}
-                            <p class="empty-state">Tidak ada pendidikan dengan nama institusi tersebut.</p>
-                        {% else %}
-                            <p class="empty-state">Belum ada riwayat pendidikan yang ditambahkan.</p>
-                        {% endif %}
-                    {% endfor %}
+                <div id="loading" class="empty-state hide">
+                    <p>Memuat riwayat pendidikan...</p>
                 </div>
+
+                <div id="error" class="empty-state hide">
+                    <p>Gagal memuat data pendidikan. Silakan coba lagi.</p>
+                </div>
+
+                <div id="empty" class="empty-state hide">
+                    <p>Belum ada riwayat pendidikan yang ditambahkan atau ditemukan.</p>
+                </div>
+
+                <div id="grid" class="card-grid card-grid--two hide"></div>
             </div>
         </section>
     </main>
+
+    {% if perms.main.add_education %}
+        {% url 'main:create_education' as fallback_url %}
+        {% include "components/form_modal.html" with modal_id="add-modal" form_id="add-form" modal_title="Tambah Riwayat Pendidikan" form_action=fallback_url submit_label="Tambah Pendidikan" %}
+    {% endif %}
+
+    {# Kartu tidak lagi memuat form star/hapus, jadi token CSRF dirender di #}
+    {# sini supaya cookie csrftoken tetap dibuat untuk akun yang login.    #}
+    {% csrf_token %}
+
+    <script src="{% static 'js/entity_list.js' %}"></script>
+    <script>
+        // ------------------------------------------------------------ konfigurasi
+        const EDUCATION_LIST_ENDPOINT = "{% url 'api:education-list' %}";
+        const EDUCATION_DETAIL_ENDPOINT = "{% url 'api:education-detail' '00000000-0000-0000-0000-000000000000' %}";
+        const EDUCATION_STAR_ENDPOINT = "{% url 'api:education-star' '00000000-0000-0000-0000-000000000000' %}";
+        const LOGIN_URL = "{% url 'main:login' %}?next={% url 'main:show_education' %}";
+
+        const EDIT_URL_TEMPLATE = "{% url 'main:edit_education' '00000000-0000-0000-0000-000000000000' %}";
+
+        // Hanya soal tampilan; permission class di API yang menentukan izin.
+        const IS_AUTHENTICATED = "{{ user.is_authenticated|yesno:'true,false' }}" === "true";
+        const CAN_CHANGE_EDUCATION = "{{ perms.main.change_education|yesno:'true,false' }}" === "true";
+        const CAN_DELETE_EDUCATION = "{{ perms.main.delete_education|yesno:'true,false' }}" === "true";
+
+        // ------------------------------------------------------ kartu pendidikan
+        // escapeHtml() membungkus setiap nilai dari database, karena innerHTML
+        // tidak punya auto-escaping seperti template Django.
+        function buildEducationCardElement(education) {
+            const articleElement = document.createElement('article');
+            articleElement.className = 'card';
+
+            const editUrl = entityEndpoint(EDIT_URL_TEMPLATE, education.id);
+
+            const imageHtml = education.institution_image_url
+                ? `<img src="${escapeHtml(education.institution_image_url)}"
+                        alt="Gambar ${escapeHtml(education.institution)}"
+                        class="card-image">`
+                : '';
+
+            const majorHtml = education.major
+                ? `<p class="education-major">${escapeHtml(education.major)}</p>`
+                : '';
+
+            const urlHtml = education.institution_url
+                ? `<a href="${escapeHtml(education.institution_url)}" class="button">Lihat Institusi</a>`
+                : '';
+
+            const starTitle = education.star_count > 0
+                ? `Dibintangi oleh ${escapeHtml(education.starred_by_names)}`
+                : 'Jadilah yang pertama memberi star';
+            const starredClass = education.is_starred ? ' is-starred' : '';
+            const starText = education.is_starred ? 'Unstar' : 'Star';
+
+            // Pengunjung tanpa login diarahkan ke halaman login.
+            const starHtml = IS_AUTHENTICATED
+                ? `<button type="button"
+                           class="button button-star${starredClass}"
+                           data-action="star"
+                           data-id="${escapeHtml(education.id)}"
+                           title="${starTitle}">
+                       <span aria-hidden="true">&#9733;</span>
+                       ${starText}
+                       <span class="star-count">${escapeHtml(education.star_count)}</span>
+                   </button>`
+                : `<a href="${LOGIN_URL}"
+                      class="button button-star"
+                      title="Login terlebih dahulu untuk memberi star">
+                       <span aria-hidden="true">&#9733;</span>
+                       Star
+                       <span class="star-count">${escapeHtml(education.star_count)}</span>
+                   </a>`;
+
+            const editHtml = CAN_CHANGE_EDUCATION
+                ? `<a href="${escapeHtml(editUrl)}" class="button button-secondary">Edit</a>`
+                : '';
+
+            const deleteHtml = CAN_DELETE_EDUCATION
+                ? `<button type="button"
+                           class="button button-danger"
+                           data-action="delete"
+                           data-id="${escapeHtml(education.id)}">Hapus</button>`
+                : '';
+
+            articleElement.innerHTML = `
+                ${imageHtml}
+                <span class="card-tag">${escapeHtml(education.level_display)}</span>
+                <h2>${escapeHtml(education.institution)}</h2>
+                ${majorHtml}
+                <p class="card-description">${escapeHtml(education.description)}</p>
+                <div class="card-footer">
+                    <p class="card-meta">${escapeHtml(education.period)}</p>
+                    <div class="card-actions">
+                        ${urlHtml}
+                        ${starHtml}
+                        ${editHtml}
+                        ${deleteHtml}
+                    </div>
+                </div>
+            `;
+            return articleElement;
+        }
+
+        // ------------------------------------------------------------------ start
+        initEntityList({
+            listEndpoint: EDUCATION_LIST_ENDPOINT,
+            detailEndpoint: EDUCATION_DETAIL_ENDPOINT,
+            starEndpoint: EDUCATION_STAR_ENDPOINT,
+            searchParam: 'institution',
+            formFields: [
+                'institution', 'level', 'major', 'description',
+                'start_year', 'end_year', 'institution_url', 'institution_image_url',
+            ],
+            buildCard: buildEducationCardElement,
+            entityLabel: 'pendidikan',
+            deleteConfirm: 'Yakin ingin menghapus riwayat pendidikan ini?',
+        });
+    </script>
 {% endblock content %}

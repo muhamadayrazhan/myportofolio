@@ -20,6 +20,11 @@ class Experience(models.Model):
     thumbnail = models.URLField(blank=True, null=True)
     started_at = models.DateField()
     ended_at = models.DateField(blank=True, null=True)
+    # Satu pengalaman bisa di-star banyak pengguna, dan satu pengguna bisa
+    # mem-star banyak pengalaman.
+    starred_by = models.ManyToManyField(
+        User, related_name="starred_experiences", blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -58,6 +63,11 @@ class Education(models.Model):
     end_year = models.PositiveIntegerField(blank=True, null=True)
     institution_url = models.URLField(blank=True)
     institution_image_url = models.URLField(blank=True, max_length=500)
+    # Satu pendidikan bisa di-star banyak pengguna, dan satu pengguna bisa
+    # mem-star banyak pendidikan.
+    starred_by = models.ManyToManyField(
+        User, related_name="starred_educations", blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

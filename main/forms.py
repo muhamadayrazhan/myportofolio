@@ -15,6 +15,22 @@ from django.utils.html import strip_tags
 from main.models import Education, Experience, Project
 
 
+# Lapisan pertahanan kedua terhadap XSS, dipakai oleh method clean_<field> di
+# ketiga form. Tag HTML dibuang sejak data masuk, sehingga berlaku untuk view
+# biasa maupun view AJAX yang sama-sama memakai form ini. Pertahanan utamanya
+# tetap escaping saat data ditampilkan, karena hasil strip_tags tidak dijamin
+# aman sebagai HTML dan pembersihan ini hanya berlaku untuk data baru.
+def _clean_text(value, required_message=None):
+    cleaned = strip_tags(value or "").strip()
+
+    # Field wajib yang isinya hanya tag HTML akan kosong setelah dibersihkan,
+    # dan itu harus ditolak, bukan disimpan sebagai string kosong.
+    if required_message and not cleaned:
+        raise ValidationError(required_message)
+
+    return cleaned
+
+
 class EducationForm(ModelForm):
     class Meta:
         model = Education
@@ -86,6 +102,18 @@ class EducationForm(ModelForm):
             ),
         }
 
+    def clean_institution(self):
+        return _clean_text(
+            self.cleaned_data["institution"],
+            "Nama institusi tidak boleh hanya berisi tag HTML.",
+        )
+
+    def clean_major(self):
+        return _clean_text(self.cleaned_data["major"])
+
+    def clean_description(self):
+        return _clean_text(self.cleaned_data["description"])
+
 
 class ExperienceForm(ModelForm):
     class Meta:
@@ -138,6 +166,18 @@ class ExperienceForm(ModelForm):
                 }
             ),
         }
+
+    def clean_title(self):
+        return _clean_text(
+            self.cleaned_data["title"],
+            "Nama posisi atau kegiatan tidak boleh hanya berisi tag HTML.",
+        )
+
+    def clean_description(self):
+        return _clean_text(
+            self.cleaned_data["description"],
+            "Deskripsi tidak boleh hanya berisi tag HTML.",
+        )
 
 
 class ProjectForm(ModelForm):
@@ -205,19 +245,15 @@ class ProjectForm(ModelForm):
             "is_featured": CheckboxInput(),
         }
 
-    # Lapisan pertahanan kedua terhadap XSS: tag HTML dibuang sejak data masuk,
-    # sehingga berlaku untuk create_project maupun create_project_ajax yang
-    # sama-sama memakai form ini. Pertahanan utamanya tetap escaping saat data
-    # ditampilkan, karena hasil strip_tags tidak dijamin aman sebagai HTML dan
-    # pembersihan ini hanya berlaku untuk data baru.
     def clean_title(self):
-        title = strip_tags(self.cleaned_data["title"]).strip()
-        if not title:
-            raise ValidationError("Nama proyek tidak boleh hanya berisi tag HTML.")
-        return title
+        return _clean_text(
+            self.cleaned_data["title"],
+            "Nama proyek tidak boleh hanya berisi tag HTML.",
+        )
 
     def clean_tech_stack(self):
-        return strip_tags(self.cleaned_data["tech_stack"]).strip()
+        return _clean_text(self.cleaned_data["tech_stack"])
 
     def clean_description(self):
-        return strip_tags(self.cleaned_data["description"]).strip()
+        return _clean_text(self.cleaned_data["description"])
+

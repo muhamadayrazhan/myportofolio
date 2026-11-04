@@ -1,0 +1,49 @@
+{% comment %}
+    Modal tambah data, memakai Popover API bawaan browser. Dipakai oleh halaman
+    Education, Experience, dan Project.
+
+    Penggunaan:
+    {% include "components/form_modal.html" with modal_id="add-modal" form_id="add-form" modal_title="Tambah Proyek Baru" form_action=... submit_label="Tambah Proyek" %}
+
+    id "add-modal" dan "add-form" adalah id yang dicari static/js/entity_list.js,
+    jadi ketiga halaman memakai nilai yang sama.
+
+    Di-include hanya untuk akun yang punya permission add_<model>; hak akses
+    sesungguhnya diperiksa di server.
+{% endcomment %}
+<div id="{{ modal_id }}"
+     class="form-modal"
+     popover="auto"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="{{ modal_id }}-title">
+    <button type="button"
+            class="form-modal__backdrop"
+            popovertarget="{{ modal_id }}"
+            popovertargetaction="hide"
+            aria-label="Tutup {{ modal_title|lower }}"></button>
+    <div class="form-modal__content">
+        <button type="button"
+                class="form-modal__close"
+                popovertarget="{{ modal_id }}"
+                popovertargetaction="hide"
+                aria-label="Tutup {{ modal_title|lower }}">&times;</button>
+        <h2 id="{{ modal_id }}-title">{{ modal_title }}</h2>
+        {# action tetap diisi endpoint non-AJAX sebagai cadangan bila JavaScript #}
+        {# gagal dimuat; submit handler di halaman daftar yang mengambil alih.   #}
+        <form id="{{ form_id }}"
+              method="post"
+              action="{{ form_action }}"
+              class="entity-form">
+            {% csrf_token %}
+            {% include "components/form_fields.html" %}
+            <div class="form-modal__actions">
+                <button type="button"
+                        class="button button-secondary"
+                        popovertarget="{{ modal_id }}"
+                        popovertargetaction="hide">Batal</button>
+                <button type="submit" class="button">{{ submit_label }}</button>
+            </div>
+        </form>
+    </div>
+</div>
