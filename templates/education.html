@@ -55,6 +55,10 @@
         {% include "components/form_modal.html" with modal_id="add-modal" form_id="add-form" modal_title="Tambah Riwayat Pendidikan" form_action=fallback_url submit_label="Tambah Pendidikan" %}
     {% endif %}
 
+    {% if perms.main.change_education %}
+        {% include "components/form_modal.html" with modal_id="edit-modal" form_id="edit-form" modal_title="Ubah Riwayat Pendidikan" form=edit_form form_action="" submit_label="Simpan Perubahan" %}
+    {% endif %}
+
     {# Kartu tidak lagi memuat form star/hapus, jadi token CSRF dirender di #}
     {# sini supaya cookie csrftoken tetap dibuat untuk akun yang login.    #}
     {% csrf_token %}
@@ -67,8 +71,6 @@
         const EDUCATION_STAR_ENDPOINT = "{% url 'api:education-star' '00000000-0000-0000-0000-000000000000' %}";
         const LOGIN_URL = "{% url 'main:login' %}?next={% url 'main:show_education' %}";
 
-        const EDIT_URL_TEMPLATE = "{% url 'main:edit_education' '00000000-0000-0000-0000-000000000000' %}";
-
         // Hanya soal tampilan; permission class di API yang menentukan izin.
         const IS_AUTHENTICATED = "{{ user.is_authenticated|yesno:'true,false' }}" === "true";
         const CAN_CHANGE_EDUCATION = "{{ perms.main.change_education|yesno:'true,false' }}" === "true";
@@ -80,8 +82,6 @@
         function buildEducationCardElement(education) {
             const articleElement = document.createElement('article');
             articleElement.className = 'card';
-
-            const editUrl = entityEndpoint(EDIT_URL_TEMPLATE, education.id);
 
             const imageHtml = education.institution_image_url
                 ? `<img src="${escapeHtml(education.institution_image_url)}"
@@ -123,7 +123,10 @@
                    </a>`;
 
             const editHtml = CAN_CHANGE_EDUCATION
-                ? `<a href="${escapeHtml(editUrl)}" class="button button-secondary">Edit</a>`
+                ? `<button type="button"
+                           class="button button-secondary"
+                           data-action="edit"
+                           data-id="${escapeHtml(education.id)}">Edit</button>`
                 : '';
 
             const deleteHtml = CAN_DELETE_EDUCATION
@@ -162,6 +165,7 @@
                 'institution', 'level', 'major', 'description',
                 'start_year', 'end_year', 'institution_url', 'institution_image_url',
             ],
+            nullableFields: ['end_year'],
             buildCard: buildEducationCardElement,
             entityLabel: 'pendidikan',
             deleteConfirm: 'Yakin ingin menghapus riwayat pendidikan ini?',

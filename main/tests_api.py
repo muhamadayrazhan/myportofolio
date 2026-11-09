@@ -263,6 +263,8 @@ class EducationAPITest(APITestCase):
                 self.client.delete(self.detail_url).status_code,
                 status.HTTP_403_FORBIDDEN,
             )
+        self.education.refresh_from_db()
+        self.assertEqual(self.education.major, "Ilmu Komputer")
         self.assertEqual(Education.objects.count(), 1)
 
     def test_owner_can_create_update_and_delete(self):
@@ -291,6 +293,11 @@ class EducationAPITest(APITestCase):
             ).status_code,
             status.HTTP_200_OK,
         )
+        response = self.client.put(self.detail_url, self.payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.education.refresh_from_db()
+        self.assertEqual(self.education.institution, "SMA Negeri 1")
+
         self.assertEqual(
             self.client.post(self.list_url, self.payload, format="json").status_code,
             status.HTTP_403_FORBIDDEN,
@@ -326,6 +333,54 @@ class EducationAPITest(APITestCase):
         self.client.force_authenticate(user=self.visitor)
         self.assertTrue(self.client.post(self.star_url).data["is_starred"])
         self.assertFalse(self.client.post(self.star_url).data["is_starred"])
+
+    def test_session_write_without_csrf_is_rejected(self):
+        client = APIClient(enforce_csrf_checks=True)
+        self.assertTrue(client.login(username="owner", password=PASSWORD))
+        response = client.patch(
+            self.detail_url, {"major": "Tanpa Token"}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.education.refresh_from_db()
+        self.assertEqual(self.education.major, "Ilmu Komputer")
+
+    def test_session_write_with_csrf_succeeds(self):
+        client = APIClient(enforce_csrf_checks=True)
+        client.login(username="owner", password=PASSWORD)
+        # The Browsable API form renders a real CSRF token into the response.
+        page = client.get(self.detail_url, HTTP_ACCEPT="text/html")
+        self.assertEqual(page.status_code, status.HTTP_200_OK)
+        token = client.cookies["csrftoken"].value
+        response = client.patch(
+            self.detail_url, {"major": "Dengan Token"}, format="json",
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.education.refresh_from_db()
+        self.assertEqual(self.education.major, "Dengan Token")
+
+    def test_optional_fields_can_be_cleared(self):
+        self.client.force_authenticate(user=self.owner)
+
+        response = self.client.patch(
+            self.detail_url,
+            {"end_year": 2029, "institution_url": "https://www.ui.ac.id/"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Bentuk payload yang dikirim modal edit: null untuk field null=True,
+        # string kosong untuk field blank=True.
+        response = self.client.patch(
+            self.detail_url,
+            {"end_year": None, "major": "", "institution_url": ""},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.education.refresh_from_db()
+        self.assertIsNone(self.education.end_year)
+        self.assertEqual(self.education.major, "")
+        self.assertEqual(self.education.institution_url, "")
 
 
 class ExperienceAPITest(APITestCase):
@@ -386,6 +441,8 @@ class ExperienceAPITest(APITestCase):
                 self.client.delete(self.detail_url).status_code,
                 status.HTTP_403_FORBIDDEN,
             )
+        self.experience.refresh_from_db()
+        self.assertEqual(self.experience.title, "Staf COMPFEST")
         self.assertEqual(Experience.objects.count(), 1)
 
     def test_owner_can_create_update_and_delete(self):
@@ -416,6 +473,11 @@ class ExperienceAPITest(APITestCase):
             ).status_code,
             status.HTTP_200_OK,
         )
+        response = self.client.put(self.detail_url, self.payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.experience.refresh_from_db()
+        self.assertEqual(self.experience.title, "Software Engineer Intern")
+
         self.assertEqual(
             self.client.post(self.list_url, self.payload, format="json").status_code,
             status.HTTP_403_FORBIDDEN,
@@ -450,3 +512,47 @@ class ExperienceAPITest(APITestCase):
         self.client.force_authenticate(user=self.visitor)
         self.assertTrue(self.client.post(self.star_url).data["is_starred"])
         self.assertFalse(self.client.post(self.star_url).data["is_starred"])
+
+    def test_session_write_without_csrf_is_rejected(self):
+        client = APIClient(enforce_csrf_checks=True)
+        self.assertTrue(client.login(username="owner", password=PASSWORD))
+        response = client.patch(
+            self.detail_url, {"title": "Tanpa Token"}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.experience.refresh_from_db()
+        self.assertEqual(self.experience.title, "Staf COMPFEST")
+
+    def test_session_write_with_csrf_succeeds(self):
+        client = APIClient(enforce_csrf_checks=True)
+        client.login(username="owner", password=PASSWORD)
+        # The Browsable API form renders a real CSRF token into the response.
+        page = client.get(self.detail_url, HTTP_ACCEPT="text/html")
+        self.assertEqual(page.status_code, status.HTTP_200_OK)
+        token = client.cookies["csrftoken"].value
+        response = client.patch(
+            self.detail_url, {"title": "Dengan Token"}, format="json",
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.experience.refresh_from_db()
+        self.assertEqual(self.experience.title, "Dengan Token")
+
+    def test_optional_fields_can_be_cleared(self):
+        self.client.force_authenticate(user=self.owner)
+
+        response = self.client.patch(
+            self.detail_url,
+            {"ended_at": "2026-12-31", "thumbnail": "https://example.com/a.png"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Bentuk payload yang dikirim modal edit: null untuk field null=True.
+        response = self.client.patch(
+            self.detail_url, {"ended_at": None, "thumbnail": None}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.experience.refresh_from_db()
+        self.assertIsNone(self.experience.ended_at)
+        self.assertIsNone(self.experience.thumbnail)

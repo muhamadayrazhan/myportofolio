@@ -158,11 +158,13 @@ def get_education_xml(request):
 def show_education(request):
     # Daftar pendidikan kini diambil sendiri oleh browser lewat AJAX ke
     # get_education_json, jadi view ini cukup mengirim kerangka halaman.
-    # EducationForm() kosong dipakai untuk merender field di dalam modal tambah.
+    # EducationForm() kosong merender field di modal tambah, dan salinannya
+    # dengan auto_id lain merender field di modal edit supaya id-nya tidak bentrok.
     context = {
         "name": NAME,
         "institution_query": request.GET.get("institution", "").strip(),
         "form": EducationForm(),
+        "edit_form": EducationForm(auto_id="edit_%s"),
     }
     return render(request, "education.html", context)
 
@@ -272,6 +274,7 @@ def show_experience(request):
         "name": NAME,
         "title_query": request.GET.get("title", "").strip(),
         "form": ExperienceForm(),
+        "edit_form": ExperienceForm(auto_id="edit_%s"),
     }
     return render(request, "experience.html", context)
 

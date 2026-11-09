@@ -5,7 +5,9 @@
  *
  * Halaman yang memakainya harus punya elemen dengan id:
  *   loading, error, empty, grid, search-form, search-input
- * dan untuk akun yang boleh menambah data: add-modal, add-form
+ * dan, sesuai permission akun:
+ *   add-modal + add-form    untuk menambah data
+ *   edit-modal + edit-form  untuk mengubah data
  */
 
 const SEARCH_DEBOUNCE_DELAY = 300;
@@ -31,8 +33,8 @@ function entityEndpoint(pattern, id) {
     return pattern.replace(DUMMY_UUID, id);
 }
 
-function closeAddModal() {
-    const modal = document.getElementById('add-modal');
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
     if (modal) modal.hidePopover();
 }
 
@@ -42,6 +44,13 @@ function apiErrorMessage(data, statusCode) {
     const messages = Object.values(data || {}).flat()
         .filter(value => typeof value === 'string');
     return messages.join(' ') || `Permintaan gagal (status ${statusCode}).`;
+}
+
+async function readEntity(url) {
+    const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(apiErrorMessage(data, response.status));
+    return data;
 }
 
 // Satu tempat untuk POST, PUT, PATCH, dan DELETE: method, JSON, token CSRF,
@@ -67,11 +76,13 @@ async function writeEntity(url, method, payload) {
 /**
  * config:
  *   listEndpoint     URL daftar; GET membaca, POST menambah
- *   detailEndpoint   template URL detail, dipakai DELETE
+ *   detailEndpoint   template URL detail, dipakai GET, PATCH, dan DELETE
  *   starEndpoint     template URL star, dipakai POST
  *   searchParam      nama query parameter pencarian
  *   formFields       field form yang dikirim sebagai payload JSON
  *   booleanFields    field checkbox di dalam formFields (opsional)
+ *   nullableFields   field di dalam formFields yang dikosongkan dengan null,
+ *                    bukan string kosong (opsional)
  *   buildCard        fungsi(item) -> HTMLElement
  *   entityLabel      nama entitas pada pesan toast
  *   deleteConfirm    kalimat konfirmasi sebelum menghapus
@@ -84,9 +95,15 @@ function initEntityList(config) {
     const searchForm = document.getElementById('search-form');
     const searchInput = document.getElementById('search-input');
     const addForm = document.getElementById('add-form');
+    const editModal = document.getElementById('edit-modal');
+    const editForm = document.getElementById('edit-form');
+
+    const booleanFields = config.booleanFields || [];
+    const nullableFields = config.nullableFields || [];
 
     let searchDebounceTimer;
     let listAbortController;
+    let editingId = null;
 
     function displayPageSection({
         showLoading = false,
@@ -146,12 +163,14 @@ function initEntityList(config) {
     });
 
     // Field dipilih eksplisit agar csrfmiddlewaretoken tidak ikut dianggap data
-    // model. Checkbox yang tidak dicentang tidak muncul di FormData, dan field
-    // opsional yang dikosongkan tidak dikirim karena field angka serta tanggal
-    // menolak string kosong.
-    function buildPayload() {
-        const fields = new FormData(addForm);
-        const booleanFields = config.booleanFields || [];
+    // model. Checkbox yang tidak dicentang tidak muncul di FormData.
+    //
+    // omitEmpty dipakai saat menambah: field opsional yang dikosongkan tidak
+    // dikirim, karena field angka dan tanggal menolak string kosong. Saat
+    // mengubah, field tetap dikirim supaya isinya benar-benar bisa dihapus,
+    // memakai null untuk field di nullableFields dan string kosong untuk sisanya.
+    function buildPayload(formElement, omitEmpty) {
+        const fields = new FormData(formElement);
         const payload = {};
 
         config.formFields.forEach(name => {
@@ -159,11 +178,29 @@ function initEntityList(config) {
                 payload[name] = fields.has(name);
                 return;
             }
+
             const value = fields.get(name);
-            if (value !== null && value !== '') payload[name] = value;
+            if (value !== null && value !== '') {
+                payload[name] = value;
+            } else if (!omitEmpty) {
+                payload[name] = nullableFields.includes(name) ? null : '';
+            }
         });
 
         return payload;
+    }
+
+    function fillForm(formElement, item) {
+        config.formFields.forEach(name => {
+            const input = formElement.elements[name];
+            if (!input) return;
+
+            if (booleanFields.includes(name)) {
+                input.checked = Boolean(item[name]);
+            } else {
+                input.value = item[name] ?? '';
+            }
+        });
     }
 
     async function addEntity(event) {
@@ -173,9 +210,9 @@ function initEntityList(config) {
         submitButton.disabled = true;
 
         try {
-            await writeEntity(config.listEndpoint, 'POST', buildPayload());
+            await writeEntity(config.listEndpoint, 'POST', buildPayload(addForm, true));
             addForm.reset();
-            closeAddModal();
+            closeModal('add-modal');
             showToast('Berhasil', `Data ${config.entityLabel} berhasil ditambahkan.`, 'success');
             await fetchEntities(searchInput.value.trim());
         } catch (error) {
@@ -185,10 +222,32 @@ function initEntityList(config) {
         }
     }
 
-    // Modal hanya dirender untuk akun yang berhak, jadi addForm bisa null.
-    if (addForm) {
-        addForm.addEventListener('submit', addEntity);
+    async function editEntity(event) {
+        event.preventDefault();
+        if (!editingId) return;
+
+        const submitButton = editForm.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+
+        try {
+            await writeEntity(
+                entityEndpoint(config.detailEndpoint, editingId),
+                'PATCH',
+                buildPayload(editForm, false),
+            );
+            closeModal('edit-modal');
+            showToast('Berhasil', `Data ${config.entityLabel} berhasil diperbarui.`, 'success');
+            await fetchEntities(searchInput.value.trim());
+        } catch (error) {
+            showToast(`Gagal memperbarui ${config.entityLabel}`, error.message, 'error');
+        } finally {
+            submitButton.disabled = false;
+        }
     }
+
+    // Modal hanya dirender untuk akun yang berhak, jadi kedua form bisa null.
+    if (addForm) addForm.addEventListener('submit', addEntity);
+    if (editForm) editForm.addEventListener('submit', editEntity);
 
     // Event delegation: tombol pada kartu yang baru dirender ikut tertangani.
     gridContainer.addEventListener('click', async function (event) {
@@ -196,6 +255,7 @@ function initEntityList(config) {
         if (!button || button.disabled) return;
 
         const action = button.dataset.action;
+        if (action === 'edit' && !editForm) return;
         if (action === 'delete' && !window.confirm(config.deleteConfirm)) return;
 
         button.disabled = true;
@@ -204,12 +264,21 @@ function initEntityList(config) {
                 await writeEntity(
                     entityEndpoint(config.starEndpoint, button.dataset.id), 'POST');
                 showToast('Berhasil', 'Status star diperbarui.', 'success');
+                await fetchEntities(searchInput.value.trim());
+            } else if (action === 'edit') {
+                // Data diambil ulang dari endpoint detail supaya form berisi
+                // nilai terbaru, bukan nilai dari daftar yang mungkin usang.
+                const item = await readEntity(
+                    entityEndpoint(config.detailEndpoint, button.dataset.id));
+                editingId = button.dataset.id;
+                fillForm(editForm, item);
+                editModal.showPopover();
             } else {
                 await writeEntity(
                     entityEndpoint(config.detailEndpoint, button.dataset.id), 'DELETE');
                 showToast('Berhasil', `Data ${config.entityLabel} berhasil dihapus.`, 'success');
+                await fetchEntities(searchInput.value.trim());
             }
-            await fetchEntities(searchInput.value.trim());
         } catch (error) {
             showToast('Permintaan gagal', error.message, 'error');
         } finally {

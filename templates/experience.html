@@ -55,6 +55,10 @@
         {% include "components/form_modal.html" with modal_id="add-modal" form_id="add-form" modal_title="Tambah Pengalaman Baru" form_action=fallback_url submit_label="Tambah Pengalaman" %}
     {% endif %}
 
+    {% if perms.main.change_experience %}
+        {% include "components/form_modal.html" with modal_id="edit-modal" form_id="edit-form" modal_title="Ubah Pengalaman" form=edit_form form_action="" submit_label="Simpan Perubahan" %}
+    {% endif %}
+
     {# Kartu tidak lagi memuat form star/hapus, jadi token CSRF dirender di #}
     {# sini supaya cookie csrftoken tetap dibuat untuk akun yang login.    #}
     {% csrf_token %}
@@ -67,8 +71,6 @@
         const EXPERIENCE_STAR_ENDPOINT = "{% url 'api:experience-star' '00000000-0000-0000-0000-000000000000' %}";
         const LOGIN_URL = "{% url 'main:login' %}?next={% url 'main:show_experience' %}";
 
-        const EDIT_URL_TEMPLATE = "{% url 'main:edit_experience' '00000000-0000-0000-0000-000000000000' %}";
-
         // Hanya soal tampilan; permission class di API yang menentukan izin.
         const IS_AUTHENTICATED = "{{ user.is_authenticated|yesno:'true,false' }}" === "true";
         const CAN_CHANGE_EXPERIENCE = "{{ perms.main.change_experience|yesno:'true,false' }}" === "true";
@@ -80,8 +82,6 @@
         function buildExperienceCardElement(experience) {
             const articleElement = document.createElement('article');
             articleElement.className = 'card';
-
-            const editUrl = entityEndpoint(EDIT_URL_TEMPLATE, experience.id);
 
             const imageHtml = experience.thumbnail
                 ? `<img src="${escapeHtml(experience.thumbnail)}"
@@ -119,7 +119,10 @@
                    </a>`;
 
             const editHtml = CAN_CHANGE_EXPERIENCE
-                ? `<a href="${escapeHtml(editUrl)}" class="button button-secondary">Edit</a>`
+                ? `<button type="button"
+                           class="button button-secondary"
+                           data-action="edit"
+                           data-id="${escapeHtml(experience.id)}">Edit</button>`
                 : '';
 
             const deleteHtml = CAN_DELETE_EXPERIENCE
@@ -157,6 +160,7 @@
                 'title', 'description', 'category',
                 'thumbnail', 'started_at', 'ended_at',
             ],
+            nullableFields: ['thumbnail', 'ended_at'],
             buildCard: buildExperienceCardElement,
             entityLabel: 'pengalaman',
             deleteConfirm: 'Yakin ingin menghapus pengalaman ini?',
